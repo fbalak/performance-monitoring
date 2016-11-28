@@ -2,9 +2,7 @@
 performance_monitoring
 ===============================
 
-Tendrl integration for Ceph Storage
-
-Long description TODO (rk).
+Tendrl sds performance monitoring
 
 * Free software: LGPL2.1
 * Documentation: TODO (rk)
