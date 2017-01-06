@@ -1,0 +1,14 @@
+interval: 600
+thresholds:
+  cpu:
+    Warning: 80
+    Failure: 90
+  mount_point:
+    Warning: 80
+    Failure: 90
+  memory:
+    Warning: 80
+    Failure: 90
+  swap:
+    Warning: 50
+    Failure: 70
