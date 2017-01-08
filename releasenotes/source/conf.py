@@ -42,7 +42,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'performance_monitoring Release Notes'
+project = u'performance-monitoring Release Notes'
 copyright = u'2016, Tendrl Project'
 
 # The version info for the project you're documenting, acts as replacement for

@@ -1,7 +1,8 @@
-========
+=====
 Usage
-========
+=====
 
-To use performance_monitoring in a project::
+To use performance-monitoring in a project::
 
-    import performance_monitoring
+    import tendrl.performance_monitoring
+
