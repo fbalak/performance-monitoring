@@ -4,14 +4,14 @@ Status
 Builds
 ------
 
-.. image:: https://travis-ci.org/Tendrl/performance_monitoring.svg?branch=master
-    :target: https://travis-ci.org/Tendrl/performance_monitoring
+.. image:: https://travis-ci.org/Tendrl/performance-monitoring.svg?branch=master
+    :target: https://travis-ci.org/Tendrl/performance-monitoring
 
 Code Coverage
 -------------
 
-.. image:: https://coveralls.io/repos/github/Tendrl/performance_monitoring/badge.svg?branch=master
-    :target: https://coveralls.io/github/Tendrl/performance_monitoring?branch=master
+.. image:: https://coveralls.io/repos/github/Tendrl/performance-monitoring/badge.svg?branch=master
+    :target: https://coveralls.io/github/Tendrl/performance-monitoring?branch=master
 
 
 Testing
@@ -72,14 +72,14 @@ To run functional tests locally::
   $ tox -e functional
 
 Tendrl CI scripts
-----------------
+-----------------
 
 *Files: /tests/ci/**
 
 This directory contains scripts and files related to the Tendrl CI system.
 
 Tendrl Style Commandments
-------------------------
+-------------------------
 
 *File: /tests/hacking/checks.py*
 
