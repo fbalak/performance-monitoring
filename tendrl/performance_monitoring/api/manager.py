@@ -2,54 +2,31 @@ import ast
 import etcd
 from flask import Flask
 from flask import request
+from flask.ext.api import status
+import json
 import logging
 from multiprocessing import Event
 from multiprocessing import Process
-from tendrl.common.config import ConfigNotFound
-from tendrl.common.config import TendrlConfig
-from tendrl.common.etcdobj.etcdobj import Server as etcd_server
-from tendrl.performance_monitoring.time_series_db.manager \
-    import TimeSeriesDBManager
 import urllib2
 
-config = TendrlConfig()
 
 LOG = logging.getLogger(__name__)
-
-
+persister = None
+time_series_db_manager = None
 app = Flask(__name__)
-
-
-def get_node_name_from_id(node_id):
-    try:
-        etcd_kwargs = {
-            'port': int(config.get("common", "etcd_port")),
-            'host': config.get("common", "etcd_connection")
-        }
-        etcd_client = etcd_server(etcd_kwargs=etcd_kwargs).client
-        node_name_path = '/nodes/%s/Node_context/fqdn' % node_id
-        return etcd_client.read(node_name_path).value
-    except (
-        ConfigNotFound,
-        etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
-        ValueError,
-        SyntaxError,
-        etcd.EtcdException,
-        TypeError
-    ) as ex:
-        raise ex
 
 
 @app.route("/monitoring/nodes/<node_id>/<resource_name>/stats")
 def get_stats(node_id, resource_name):
     try:
-        node_name = get_node_name_from_id(node_id)
-        return TimeSeriesDBManager().\
+        global persister
+        node_name = persister.get_node_name_from_id(
+            node_id
+        )
+        return time_series_db_manager.\
             get_plugin().\
             get_metric_stats(node_name, resource_name)
     except (
-        ConfigNotFound,
         ValueError,
         urllib2.URLError,
         etcd.EtcdKeyNotFound,
@@ -58,16 +35,18 @@ def get_stats(node_id, resource_name):
         etcd.EtcdException,
         TypeError
     ) as ex:
-        raise ex
+        return str(ex), status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 @app.route("/monitoring/nodes/<node_id>/monitored_types")
 def get_stat_types(node_id):
     try:
-        node_name = get_node_name_from_id(node_id)
-        return TimeSeriesDBManager().get_plugin().get_metrics(node_name)
+        global persister
+        node_name = persister.get_node_name_from_id(
+            node_id
+        )
+        return time_series_db_manager.get_plugin().get_metrics(node_name)
     except (
-        ConfigNotFound,
         ValueError,
         urllib2.URLError,
         etcd.EtcdKeyNotFound,
@@ -76,22 +55,13 @@ def get_stat_types(node_id):
         etcd.EtcdException,
         TypeError
     ) as ex:
-        raise ex
+        return str(ex), status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 @app.route("/monitoring/nodes/summary")
 def get_node_summary():
     try:
-        etcd_kwargs = {
-            'port': int(config.get("common", "etcd_port")),
-            'host': config.get("common", "etcd_connection")
-        }
-        etcd_client = etcd_server(etcd_kwargs=etcd_kwargs).client
-        monitoring_node_det = etcd_client.read(
-            '/monitoring/summary/',
-            recursive=True
-        )
-        ret_val = []
+        global persister
         # Only 1 filter that is the node list is the only supported filter
         # anything else is simply ignored.
         is_filter = (
@@ -100,18 +70,10 @@ def get_node_summary():
         )
         if is_filter:
             node_list = ast.literal_eval(request.args.items()[0][1])
-        for child in monitoring_node_det._children:
-            if 'summary' in child['key']:
-                node_summary = {
-                    'node_id': child['key'][len('/monitoring/summary/'):],
-                    'summary': child['value']
-                }
-                if is_filter:
-                    if node_summary['node_id'] in node_list:
-                        ret_val.append(node_summary)
-                else:
-                    ret_val.append(node_summary)
-        return str(ret_val)
+            ret_val = persister.get_node_summary(node_list)
+        else:
+            ret_val = persister.get_node_summary()
+        return json.dumps(ret_val).encode('utf8')
     except (
         etcd.EtcdKeyNotFound,
         etcd.EtcdConnectionFailed,
@@ -120,29 +82,26 @@ def get_node_summary():
         etcd.EtcdException,
         TypeError
     ) as ex:
-        raise ex
+        return str(ex), status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 class APIManager(Process):
 
-    def __init__(self):
+    def __init__(
+        self,
+        api_host,
+        api_port,
+        persister_instance,
+        timeSeriesDbManager
+    ):
         super(APIManager, self).__init__()
         self._complete = Event()
-        try:
-            self.host = config.get(
-                "tendrl_performance",
-                "api_server_addr"
-            )
-            self.port = config.get(
-                "tendrl_performance",
-                "api_server_port"
-            )
-        except ConfigNotFound as ex:
-            LOG.error(
-                'Failed to start api manager. Error %s' % str(ex),
-                exc_info=True
-            )
-            raise ex
+        self.host = api_host
+        self.port = api_port
+        global persister
+        persister = persister_instance
+        global time_series_db_manager
+        time_series_db_manager = timeSeriesDbManager
 
     def run(self):
         try:
@@ -156,7 +115,7 @@ class APIManager(Process):
 
     def stop(self):
         try:
-            TimeSeriesDBManager().stop()
+            time_series_db_manager.stop()
         except Exception as e:
             LOG.error(
                 'Exception %s caught while interrupting api server' % str(e),
