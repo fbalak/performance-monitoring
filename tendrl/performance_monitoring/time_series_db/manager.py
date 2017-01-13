@@ -5,13 +5,10 @@ import logging
 import os
 import re
 import six
-from tendrl.common.config import ConfigNotFound
-from tendrl.common.config import TendrlConfig
-from tendrl.common.singleton import to_singleton
 
 
 LOG = logging.getLogger(__name__)
-config = TendrlConfig()
+config = None
 
 
 class FailedToFetchTimeSeriesData(Exception):
@@ -31,7 +28,7 @@ class PluginMount(type):
     def register_plugin(cls, plugin):
         instance = plugin()
         cls.plugins.append(instance)
-        instance.intialize()
+        instance.intialize(config)
 
 
 @six.add_metaclass(PluginMount)
@@ -54,16 +51,18 @@ class TimeSeriesDBPlugin(object):
         raise NotImplementedError()
 
 
-@to_singleton
 class TimeSeriesDBManager(object):
 
-    def __init__(self):
-        self.time_series_db = config.get('time_series', 'time_series_db')
+    def __init__(self, conf, time_series_db):
+        self.time_series_db = time_series_db
+        global config
+        config = conf
         try:
             self.load_plugins()
-        except (ConfigNotFound, SyntaxError, ValueError, ImportError) as ex:
+        except (SyntaxError, ValueError, ImportError) as ex:
             raise ex
-        self.plugin = self.set_plugin()
+        self.plugin = None
+        self.set_plugin()
 
     def load_plugins(self):
         try:
@@ -76,7 +75,7 @@ class TimeSeriesDBManager(object):
                 clsmembers = inspect.getmembers(mod, inspect.isclass)
                 for name, cls in clsmembers:
                     exec("from %s import %s" % (plugin_name, name))
-        except (ConfigNotFound, SyntaxError, ValueError, ImportError) as ex:
+        except (SyntaxError, ValueError, ImportError) as ex:
             LOG.error('Failed to load the time series db plugins. Error %s' %
                       ex, exc_info=True)
             raise ex
@@ -88,7 +87,8 @@ class TimeSeriesDBManager(object):
         for plugin in TimeSeriesDBPlugin.plugins:
             if re.search(self.time_series_db.lower(), type(
                     plugin).__name__.lower(), re.IGNORECASE):
-                return plugin
+                self.plugin = plugin
 
     def stop(self):
         self.plugin.destroy()
+
