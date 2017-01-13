@@ -12,8 +12,16 @@ tendrl_collectd_severity_map = {
     'OK': 'INFO'
 }
 
+# When Collectd's threshold plugin detects breach of configured threshold
+# it creates a fork of this plugin which is configured as NotificationExec
+# plugin with the details of threshold breach on plugins STDIN
+
 
 def get_notification():
+    """
+        Parse the threshold breach details from STDIN into a dict of fields
+        and a summary message.
+    """
     collectd_alert = {}
     is_end_of_dictionary = False
     for line in sys.stdin:
@@ -28,6 +36,9 @@ def get_notification():
 
 
 def collectd_to_tendrl_alert(collectd_alert, collectd_message):
+    """
+        Transform the dict into a tendrl understandable structure
+    """
     tendrl_alert = {}
     tendrl_alert['source'] = "collectd"
     tendrl_alert['pid'] = check_output(["pidof", "collectd"]).strip()
@@ -50,6 +61,9 @@ def collectd_to_tendrl_alert(collectd_alert, collectd_message):
 
 
 def post_notification_to_node_agent_socket():
+    """
+        Post the observed threshold detail to the node-agent exposed socket.
+    """
     s = socket.socket()
     host = "127.0.0.1"
     port = 12345
