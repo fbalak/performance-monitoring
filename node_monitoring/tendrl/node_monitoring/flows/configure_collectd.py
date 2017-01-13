@@ -1,9 +1,9 @@
 import socket
 
-from tendrl.node_agent.flows.flow import Flow
+from tendrl.commons.flows.base_flow import BaseFlow
 
 
-class ConfigureCollectd(Flow):
+class ConfigureCollectd(BaseFlow):
 
     def run(self):
         self.parameters['Node.cmd_str'] = "config_manager %s '%s'" % (

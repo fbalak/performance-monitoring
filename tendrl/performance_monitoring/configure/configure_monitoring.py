@@ -1,38 +1,18 @@
 from etcd import EtcdConnectionFailed
-from etcd import EtcdKeyNotFound
 import logging
 import multiprocessing
-from tendrl.common.config import TendrlConfig
-from tendrl.common.etcdobj.etcdobj import Server as etcd_server
-
-
-config = TendrlConfig()
+from tendrl.performance_monitoring.exceptions \
+    import TendrlPerformanceMonitoringException
 
 
 LOG = logging.getLogger(__name__)
 
 
 class ConfigureMonitoring(multiprocessing.Process):
-
-    def get_nodes_details(self):
-        nodes_dets = []
-        try:
-            nodes = self.etcd_client.read('/nodes/', recursive=True)
-            for node in nodes._children:
-                if node['key'].startswith('/nodes/'):
-                    node_id = node['key'][len('/nodes/'):]
-                    fqdn = self.etcd_client.read(
-                        '%s/Node_context/fqdn' %
-                        (node['key']), recursive=True).value
-                    nodes_dets.append({'node_id': node_id, 'fqdn': fqdn})
-            return nodes_dets
-        except (EtcdConnectionFailed, EtcdKeyNotFound):
-            return nodes_dets
-
     def watch_nodes(self):
         try:
             while True:
-                node_changes = self.etcd_client.watch(
+                node_changes = self.persister.get_store().client.watch(
                     '/nodes', recursive=True, timeout=0)
                 if node_changes is not None and node_changes.value is not None:
                     node_id = node_changes.key
@@ -52,22 +32,26 @@ class ConfigureMonitoring(multiprocessing.Process):
             )
 
     def init_monitoring(self):
-        node_dets = self.get_nodes_details()
-        for node_det in node_dets:
-            self.configurator_queue.put(node_det)
+        try:
+            node_dets = self.persister.get_nodes_details()
+            for node_det in node_dets:
+                self.configurator_queue.put(node_det)
+        except TendrlPerformanceMonitoringException as ex:
+            LOG.error(
+                'Failed to intialize monitoring configuration on nodes. '
+                'Error %s' % str(ex),
+                exc_info=True
+            )
+            raise ex
 
-    def __init__(self, configurator_queue):
-        super(ConfigureMonitoring, self).__init__()
-        etcd_kwargs = {
-            'port': int(config.get("common", "etcd_port")),
-            'host': config.get("common", "etcd_connection")
-        }
-        self.etcd_client = etcd_server(etcd_kwargs=etcd_kwargs).client
-        self.configurator_queue = configurator_queue
-        self.init_monitoring()
+    def __init__(self, configurator_queue, persister_instance):
+        try:
+            super(ConfigureMonitoring, self).__init__()
+            self.persister = persister_instance
+            self.configurator_queue = configurator_queue
+            self.init_monitoring()
+        except TendrlPerformanceMonitoringException as ex:
+            raise ex
 
     def run(self):
         self.watch_nodes()
-
-    def stop(self):
-        pass

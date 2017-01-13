@@ -7,6 +7,7 @@ import os
 import platform
 import socket
 from sys import argv
+from tendrl.commons.utils.service import Service
 
 collectd_os_specifics = {
     'Fedora': {
@@ -56,8 +57,7 @@ def main():
     conf_name = argv[1]
     data = json.loads(argv[2])
     ConfigManager(conf_name, data).generate_config_file()
-    response = os.system("service collectd restart")
-    return response
+    return Service('collectd').restart
 
 
 if __name__ == '__main__':
