@@ -15,12 +15,10 @@ class GetMonitoringDefaults(object):
         else:
             self.defaults_path = defaults_path
         self.defaults = {}
+        self.api_host = api_host
+        self.api_port = api_port
         if api_host == '0.0.0.0':
-                api_host = socket.getfqdn()
-        self.defaults['api_server'] = {
-            "api_server_addr": api_host,
-            "api_server_port": api_port
-        }
+            self.api_host = socket.getfqdn()
         self.setDefaults()
 
     def getDefaults(self):
@@ -32,6 +30,10 @@ class GetMonitoringDefaults(object):
             config = yaml.load(data)
             self.defaults = config
             self.defaults['master_name'] = socket.getfqdn()
+            self.defaults['api_server'] = {
+                "api_server_addr": self.api_host,
+                "api_server_port": self.api_port
+            }
         except (IOError, yaml.YAMLError, AttributeError) as ex:
             LOG.info('Fetching defaults failed from path %s. Error %s'
                      % (self.defaults_path, ex))
