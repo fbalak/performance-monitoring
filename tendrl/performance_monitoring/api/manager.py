@@ -3,11 +3,11 @@ import etcd
 from flask import Flask
 from flask import request
 from flask.ext.api import status
-import json
 import logging
 from multiprocessing import Event
 from multiprocessing import Process
 import urllib2
+import yaml
 
 
 LOG = logging.getLogger(__name__)
@@ -73,7 +73,7 @@ def get_node_summary():
             ret_val = persister.get_node_summary(node_list)
         else:
             ret_val = persister.get_node_summary()
-        return json.dumps(ret_val).encode('utf8')
+        return yaml.safe_dump(ret_val)
     except (
         etcd.EtcdKeyNotFound,
         etcd.EtcdConnectionFailed,
