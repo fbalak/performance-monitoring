@@ -6,6 +6,7 @@ from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 import time
 import urllib2
+import yaml
 
 LOG = logging.getLogger(__name__)
 
@@ -118,8 +119,8 @@ class Summarise(multiprocessing.Process):
     def calculate_host_summary(self, node):
         try:
             summary = self._persister.get_node_summary(node)
-            if not summary:
-                return
+            if summary is None:
+                summary = {}
             net_cpu_utilization = self.get_net_host_cpu_utilization(node)
             if net_cpu_utilization is not None:
                 summary['cpu'] = net_cpu_utilization
