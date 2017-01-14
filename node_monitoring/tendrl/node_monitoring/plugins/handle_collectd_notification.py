@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
 
-import json
 import socket
 import sys
 from subprocess import check_output
+import yaml
 
 tendrl_collectd_severity_map = {
     'FAILURE': 'CRITICAL',
@@ -76,7 +76,7 @@ def post_notification_to_node_agent_socket():
     s.connect((host, port))
     collectd_alert, collectd_message = get_notification()
     tendrl_alert = collectd_to_tendrl_alert(collectd_alert, collectd_message)
-    s.send(json.dumps(tendrl_alert))
+    s.send(yaml.safe_dump(tendrl_alert))
     s.shutdown(socket.SHUT_RDWR)
 
 
