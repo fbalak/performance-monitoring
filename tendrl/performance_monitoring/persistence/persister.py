@@ -77,7 +77,7 @@ class PerformanceMonitoringEtcdPersister(EtcdPersister):
                 '/_tendrl/config/performance_monitoring'
             )
             configs = conf.value
-            return ast.literal_eval(configs)
+            return yaml.safe_load(configs)
         except (EtcdKeyNotFound, EtcdConnectionFailed, ValueError,
                 SyntaxError, EtcdException) as ex:
             LOG.error('Fetching monitoring configurations failed. Error %s' %
@@ -200,7 +200,8 @@ class PerformanceMonitoringEtcdPersister(EtcdPersister):
     def save_node_summary(self, summary, node_id):
         try:
             self._store.client.write(
-                '/monitoring/summary/%s' % node_id
+                '/monitoring/summary/%s' % node_id,
+                yaml.safe_dump(summary)
             )
         except (
             EtcdConnectionFailed,
