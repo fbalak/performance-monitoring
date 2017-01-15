@@ -1,0 +1,17 @@
+LoadPlugin cpu
+
+<Plugin cpu>
+  ValuesPercentage true
+  ReportByCpu false
+</Plugin>
+
+<Plugin "threshold">
+    <Plugin "cpu">
+       <Type "percent">
+         Instance user
+         FailureMax {{ Failure }}
+         WarningMax {{ Warning }}
+       </Type>
+    </Plugin>
+</Plugin>
+
