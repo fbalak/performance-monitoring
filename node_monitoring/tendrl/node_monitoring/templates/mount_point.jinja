@@ -1,0 +1,18 @@
+LoadPlugin df
+
+<Plugin "df">
+  ValuesPercentage true
+  IgnoreSelected false
+  ReportInodes true
+</Plugin>
+
+<Plugin "threshold">
+    <Plugin "df">
+       <Type "percent_bytes">
+         Instance used
+         FailureMax {{ Failure }}
+         WarningMax {{ Warning }}
+       </Type>
+    </Plugin>
+</Plugin>
+

@@ -1,0 +1,2 @@
+class TendrlPerformanceMonitoringException(Exception):
+    pass
