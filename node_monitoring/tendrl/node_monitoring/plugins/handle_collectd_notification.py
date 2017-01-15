@@ -2,8 +2,8 @@
 
 
 import socket
-import sys
 from subprocess import check_output
+import sys
 import yaml
 
 tendrl_collectd_severity_map = {
@@ -14,6 +14,7 @@ tendrl_collectd_severity_map = {
 
 
 def get_notification():
+
     """
         Collectd forks an instance of this plugin per threshold breach detected
         Read collectd detected threshold breach details from standard input of
@@ -22,6 +23,7 @@ def get_notification():
         The collectd message as a dict
         The summary of collectd message as a string
     """
+
     collectd_alert = {}
     is_end_of_dictionary = False
     for line in sys.stdin:
@@ -36,6 +38,7 @@ def get_notification():
 
 
 def collectd_to_tendrl_alert(collectd_alert, collectd_message):
+
     """
         Function to transform collectd detected threshold breach message dict
         to a tendrl format by
@@ -44,6 +47,7 @@ def collectd_to_tendrl_alert(collectd_alert, collectd_message):
         Returns:
         Tendrl understandable threshold breach alert as a dict
     """
+
     tendrl_alert = {}
     tendrl_alert['source'] = "collectd"
     tendrl_alert['pid'] = check_output(["pidof", "collectd"]).strip()
@@ -66,10 +70,12 @@ def collectd_to_tendrl_alert(collectd_alert, collectd_message):
 
 
 def post_notification_to_node_agent_socket():
+
     """
         Post threshold breach tendrl understandable alert dict to node-agent
         exposed socket.
     """
+
     s = socket.socket()
     host = "127.0.0.1"
     port = 12345
