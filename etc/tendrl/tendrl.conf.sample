@@ -11,7 +11,7 @@ log_path = /var/log/tendrl/common.log
 log_level = DEBUG
 
 
-[performance_monitoring]
+[performance-monitoring]
 # Path to log file
 log_cfg_path = /etc/tendrl/logging.yaml
 log_level = DEBUG
