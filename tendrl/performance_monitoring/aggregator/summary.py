@@ -6,7 +6,6 @@ from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 import time
 import urllib2
-import yaml
 
 LOG = logging.getLogger(__name__)
 
@@ -19,6 +18,7 @@ class Summarise(multiprocessing.Process):
         self.time_series_db_manager = timeSeriesDbManager
 
     def get_latest_stat(self, node, resource):
+
         '''
             Get latest stats of resource as in param resource
             Keyword arguments:
@@ -27,6 +27,7 @@ class Summarise(multiprocessing.Process):
             Returns:
             Latest stat of float type
         '''
+
         try:
             node_name = self._persister.get_node_name_from_id(node)
             stats = self.time_series_db_manager.get_plugin().get_metric_stats(
@@ -45,6 +46,7 @@ class Summarise(multiprocessing.Process):
             raise TendrlPerformanceMonitoringException(ex)
 
     def get_latest_stats(self, node, resource):
+
         '''
             Get latest stats of resources matching wild cards in param resource
             Keyword arguments:
@@ -53,6 +55,7 @@ class Summarise(multiprocessing.Process):
             Returns:
             Array of latest stats
         '''
+
         try:
             node_name = self._persister.get_node_name_from_id(node)
             stats = self.time_series_db_manager.get_plugin().get_metric_stats(
@@ -155,4 +158,3 @@ class Summarise(multiprocessing.Process):
 
     def stop(self):
         self._complete.set()
-
