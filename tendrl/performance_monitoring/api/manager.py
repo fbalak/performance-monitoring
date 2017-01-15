@@ -1,8 +1,8 @@
 import ast
 import etcd
+from flask.ext.api import status
 from flask import Flask
 from flask import request
-from flask.ext.api import status
 import logging
 from multiprocessing import Event
 from multiprocessing import Process
