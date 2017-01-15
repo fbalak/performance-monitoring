@@ -28,7 +28,7 @@ ConfigureCollectd',
                     'Service.name': 'collectd',
                 },
             }
-            self.persister.get_store().client.write(
+            self.persister._store.client.write(
                 "/queue/%s" % uuid.uuid4(),
                 json.dumps(job)
             )

@@ -12,7 +12,7 @@ class ConfigureMonitoring(multiprocessing.Process):
     def watch_nodes(self):
         try:
             while True:
-                node_changes = self.persister.get_store().client.watch(
+                node_changes = self.persister._store.client.watch(
                     '/nodes', recursive=True, timeout=0)
                 if node_changes is not None and node_changes.value is not None:
                     node_id = node_changes.key
