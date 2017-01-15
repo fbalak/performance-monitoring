@@ -1,6 +1,6 @@
 [run]
 branch = True
-source = tendrl.performance_monitoring
+source = performance_monitoring
 omit = tendrl/performance_monitoring/tests/*
 
 [report]
