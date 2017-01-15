@@ -1,9 +1,9 @@
 """
 
-test_performance_monitoring
+test_performance-monitoring
 ----------------------------------
 
-Tests for `performance_monitoring` module.
+Tests for `performance-monitoring` module.
 
 """
 
