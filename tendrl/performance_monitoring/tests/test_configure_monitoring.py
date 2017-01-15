@@ -1,6 +1,4 @@
 from ConfigParser import SafeConfigParser
-from etcd import client
-from etcd import EtcdResult
 from mock import MagicMock
 import multiprocessing
 import sys

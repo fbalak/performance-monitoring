@@ -1,9 +1,7 @@
 from ConfigParser import SafeConfigParser
-import etcd
 import json
 from mock import MagicMock
 import multiprocessing
-import pytest
 import sys
 sys.modules['tendrl.common.config'] = MagicMock()
 sys.modules['tendrl.common.log'] = MagicMock()
