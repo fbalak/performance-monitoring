@@ -1,9 +1,13 @@
 import datetime
+from etcd import EtcdConnectionFailed
+from etcd import EtcdKeyNotFound
 import logging
 import multiprocessing
 import re
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
+from tendrl.performance_monitoring.objects.summary \
+    import PerformanceMonitoringSummary
 import time
 import urllib2
 
@@ -11,25 +15,17 @@ LOG = logging.getLogger(__name__)
 
 
 class Summarise(multiprocessing.Process):
-    def __init__(self, persister_instance, timeSeriesDbManager):
+    def __init__(self, timeSeriesDbManager):
         super(Summarise, self).__init__()
         self._complete = multiprocessing.Event()
-        self._persister = persister_instance
         self.time_series_db_manager = timeSeriesDbManager
 
+    ''' Get latest stats of resource as in param resource'''
     def get_latest_stat(self, node, resource):
-
-        '''
-            Get latest stats of resource as in param resource
-            Keyword arguments:
-            node: The id of node of which the latest stats are required
-            resource: The name of resource
-            Returns:
-            Latest stat of float type
-        '''
-
         try:
-            node_name = self._persister.get_node_name_from_id(node)
+            node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
+                node
+            )
             stats = self.time_series_db_manager.get_plugin().get_metric_stats(
                 node_name,
                 resource,
@@ -37,7 +33,7 @@ class Summarise(multiprocessing.Process):
             )
             return float(re.search('Current:(.+?)Max', stats).group(1))
         except (ValueError, urllib2.URLError, AttributeError) as ex:
-            LOG.error(
+            LOG.debug(
                 'Failed to get latest stat of %s of node %s for node summary.'
                 'Error %s'
                 % (resource, node, str(ex)),
@@ -45,19 +41,10 @@ class Summarise(multiprocessing.Process):
             )
             raise TendrlPerformanceMonitoringException(ex)
 
+    ''' Get latest stats of resources matching wild cards in param resource'''
     def get_latest_stats(self, node, resource):
-
-        '''
-            Get latest stats of resources matching wild cards in param resource
-            Keyword arguments:
-            node: The id of node of which the latest stats are required
-            resource: The pattern of resource name including wild cards
-            Returns:
-            Array of latest stats
-        '''
-
         try:
-            node_name = self._persister.get_node_name_from_id(node)
+            node_name = tendrl_ns.central_store_thread.get_node_name_from_id(node)
             stats = self.time_series_db_manager.get_plugin().get_metric_stats(
                 node_name,
                 resource,
@@ -65,7 +52,7 @@ class Summarise(multiprocessing.Process):
             )
             return re.findall('Current:(.+?)Max', stats)
         except (ValueError, urllib2.URLError, AttributeError) as ex:
-            LOG.error(
+            LOG.debug(
                 'Failed to get latest stats of %s of node %s for node summary'
                 'Error %s' % (resource, node, str(ex)),
                 exc_info=True
@@ -87,11 +74,12 @@ class Summarise(multiprocessing.Process):
     def get_net_host_memory_utilization(self, node):
         try:
             used = self.get_latest_stat(node, 'memory.memory-used')
+            total = self.get_latest_stat(node, 'aggregation-memory-sum.memory')
             percent_used = self.get_latest_stat(node, 'memory.percent-used')
             return {
                 'used': used,
                 'percent_used': percent_used,
-                'total': (used * 100) / percent_used,
+                'total': total,
                 'updated_at': datetime.datetime.now().isoformat()
             }
         except TendrlPerformanceMonitoringException:
@@ -108,6 +96,8 @@ class Summarise(multiprocessing.Process):
             free = 0.0
             for stat in free_stats:
                 free = free + float(stat)
+            if free + used == 0:
+                return None
             percent_used = float(used * 100) / float(free + used)
             return {
                 'used': used,
@@ -120,41 +110,79 @@ class Summarise(multiprocessing.Process):
             return None
 
     def calculate_host_summary(self, node):
+        cpu_usage = self.get_net_host_cpu_utilization(node)
+        memory_usage = self.get_net_host_memory_utilization(node)
+        storage_usage = self.get_net_storage_utilization(node)
+        alert_count = len(tendrl_ns.central_store_thread.get_alerts(node))
+        if (
+            cpu_usage is None and
+            memory_usage is None and
+            storage_usage is None and
+            alert_count == 0
+        ):
+            return
+        #tendrl_ns.old_summary = \
+        #    tendrl_ns.performance_monitoring.objects.\
+        #    PerformanceMonitoringSummary(
+        #        node
+        #    )
+        #tendrl_ns.old_summary.read()
         try:
-            summary = self._persister.get_node_summary(node)
-            if summary is None:
-                summary = {}
-            net_cpu_utilization = self.get_net_host_cpu_utilization(node)
-            if net_cpu_utilization is not None:
-                summary['cpu'] = net_cpu_utilization
-            net_memory_utilization = self.get_net_host_memory_utilization(node)
-            if net_memory_utilization is not None:
-                summary['memory'] = net_memory_utilization
-            net_storage_utilization = self.get_net_storage_utilization(node)
-            if net_storage_utilization is not None:
-                summary['storage'] = net_storage_utilization
-            alert_count = len(self._persister.get_alerts(node))
-            if alert_count is not None:
-                summary['alert_cnt'] = alert_count
-            if summary:
-                self._persister.save_node_summary(summary, node)
-        except TendrlPerformanceMonitoringException as ex:
+            old_summary = PerformanceMonitoringSummary(
+                node,
+                cpu_usage={
+                    'percent_used': '',
+                    'updated_at': ''
+                },
+                memory_usage={
+                    'percent_used': '',
+                    'updated_at': '',
+                    'used': '',
+                    'total': ''
+                },
+                storage_usage={
+                    'percent_used': '',
+                    'total': '',
+                    'used': '',
+                    'updated_at': ''
+                },
+                alert_count=0
+            ).load()
+        except EtcdKeyNotFound:
+            pass
+        except EtcdConnectionFailed as ex:
             LOG.error(
-                'Exception %s caught while calculating summary for node %s' % (
-                    str(ex),
-                    node
-                ), exc_info=True
+                'Failed to fetch previously computed summary from etcd.'
+                'Error %s' % str(ex),
+                exc_info=True
             )
+            return
+        if cpu_usage is None:
+            cpu_usage = old_summary.cpu_usage
+        if memory_usage is None:
+            memory_usage = old_summary.memory_usage
+        if storage_usage is None:
+            storage_usage = old_summary.storage_usage
+        tendrl_ns.summary = \
+            tendrl_ns.performance_monitoring.objects.\
+            PerformanceMonitoringSummary(
+                node,
+                cpu_usage,
+                memory_usage,
+                storage_usage,
+                alert_count
+            )
+        tendrl_ns.summary.save()
 
     def calculate_host_summaries(self):
-        nodes = self._persister.get_node_ids()
+        nodes = tendrl_ns.central_store_thread.get_node_ids()
         for node in nodes:
             self.calculate_host_summary(node)
 
     def run(self):
         while not self._complete.is_set():
-            time.sleep(60)
             self.calculate_host_summaries()
+            time.sleep(60)
 
     def stop(self):
         self._complete.set()

@@ -53,14 +53,14 @@ class TimeSeriesDBPlugin(object):
 
 class TimeSeriesDBManager(object):
 
-    def __init__(self, conf, time_series_db):
+    def __init__(self, conf):
         # Since this is a singleton class the singleton framework ensures only
         # a single call to this constructor in the life time of the application
         # However wherever the class is attempted to be intialized, it tries to
         # match the constructor and hence the 2nd arguement is made to appear
         # as an optional arguement although it is enforced internally not be
         # optional due to reason stated above.
-        self.time_series_db = time_series_db
+        self.time_series_db = conf['time_series_db']
         global config
         config = conf
         try:
@@ -97,4 +97,3 @@ class TimeSeriesDBManager(object):
 
     def stop(self):
         self.plugin.destroy()
-
