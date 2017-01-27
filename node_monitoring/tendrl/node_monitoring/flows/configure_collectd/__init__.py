@@ -1,9 +1,9 @@
 import socket
 
-from tendrl.commons.flows.base_flow import BaseFlow
+from tendrl.node_monitoring.flows import NodeMonitoringBaseFlow
 
 
-class ConfigureCollectd(BaseFlow):
+class ConfigureCollectd(NodeMonitoringBaseFlow):
 
     def run(self):
         self.parameters['Node.cmd_str'] = "config_manager %s '%s'" % (
@@ -11,3 +11,4 @@ class ConfigureCollectd(BaseFlow):
             self.parameters['plugin_conf_params'])
         self.parameters['fqdn'] = socket.getfqdn()
         super(ConfigureCollectd, self).run()
+

@@ -1,6 +1,6 @@
 import io
-import sys
 import subprocess
+import sys
 from tendrl.node_monitoring.plugins.handle_collectd_notification \
     import collectd_to_tendrl_alert
 from tendrl.node_monitoring.plugins.handle_collectd_notification \

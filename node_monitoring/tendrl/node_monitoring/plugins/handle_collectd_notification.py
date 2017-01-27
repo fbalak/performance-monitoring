@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
 
+import json
 import socket
 from subprocess import check_output
 import sys
-import yaml
 
 tendrl_collectd_severity_map = {
     'FAILURE': 'CRITICAL',
@@ -12,18 +12,12 @@ tendrl_collectd_severity_map = {
     'OK': 'INFO'
 }
 
+'''Collectd forks an instance of this plugin per threshold breach detected
+Read collectd detected threshold breach details from standard input of
+current fork.'''
+
 
 def get_notification():
-
-    """
-        Collectd forks an instance of this plugin per threshold breach detected
-        Read collectd detected threshold breach details from standard input of
-        current fork.
-        Returns:
-        The collectd message as a dict
-        The summary of collectd message as a string
-    """
-
     collectd_alert = {}
     is_end_of_dictionary = False
     for line in sys.stdin:
@@ -37,17 +31,13 @@ def get_notification():
     return collectd_alert, line
 
 
+'''Function to transform collectd detected threshold breach message dict
+to tendrl format by
+1. appending additional information like pid, source, etc..
+2. mapping collectd specified severity to tendrl severity levels.'''
+
+
 def collectd_to_tendrl_alert(collectd_alert, collectd_message):
-
-    """
-        Function to transform collectd detected threshold breach message dict
-        to a tendrl format by
-        1. appending additional information like pid, source, etc..
-        2. mapping collectd specified severity to tendrl severity levels.
-        Returns:
-        Tendrl understandable threshold breach alert as a dict
-    """
-
     tendrl_alert = {}
     tendrl_alert['source'] = "collectd"
     tendrl_alert['pid'] = check_output(["pidof", "collectd"]).strip()
@@ -69,20 +59,18 @@ def collectd_to_tendrl_alert(collectd_alert, collectd_message):
     return tendrl_alert
 
 
+'''Post threshold breach tendrl understandable alert dict to node-agent
+exposed socket.'''
+
+
 def post_notification_to_node_agent_socket():
-
-    """
-        Post threshold breach tendrl understandable alert dict to node-agent
-        exposed socket.
-    """
-
     s = socket.socket()
     host = "127.0.0.1"
     port = 12345
     s.connect((host, port))
     collectd_alert, collectd_message = get_notification()
     tendrl_alert = collectd_to_tendrl_alert(collectd_alert, collectd_message)
-    s.send(yaml.safe_dump(tendrl_alert))
+    s.send(json.dumps(tendrl_alert))
     s.shutdown(socket.SHUT_RDWR)
 
 
