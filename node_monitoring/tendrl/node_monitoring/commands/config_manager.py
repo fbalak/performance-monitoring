@@ -7,13 +7,7 @@ import os
 import platform
 import socket
 from sys import argv
-from tendrl.commons.config import load_config
 from tendrl.commons.utils.service import Service
-
-config = load_config(
-    "node_monitoring",
-    "/etc/tendrl/node-monitoring/node-monitoring.conf.yaml"
-)
 
 collectd_os_specifics = {
     'Fedora': {
@@ -60,12 +54,12 @@ class ConfigManager(object):
 
 
 def main():
-    conf_name = argv[1]
-    data = json.loads(argv[2])
+    conf_name = argv[2]
+    data = json.loads(argv[3])
     ConfigManager(conf_name, data).generate_config_file()
     return Service(
         'collectd',
-        config['tendrl_ansible_exec_file']
+        argv[1]
     ).restart
 
 

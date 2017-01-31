@@ -3,7 +3,7 @@ import importlib
 import namespaces as ns
 import yaml
 
-import re
+
 from tendrl.commons import objects
 from tendrl.commons import etcdobj
 from tendrl.node_monitoring.objects.definition import node_monitoring
@@ -22,12 +22,11 @@ class Definition(objects.BaseObject):
         self._parsed_defs = yaml.safe_load(self.node_monitoring)
         self._etcd_cls = _DefinitionEtcd
 
-
     def get_obj_definition(self, namespace, obj_name):
         raw_ns = "namespace.%s" % namespace
         raw_obj = self._get_parsed_defs()[raw_ns]['objects'][obj_name]
         for atom_name, atom in raw_obj.get('atoms', {}).iteritems():
-            atom_mod = atom['run'].split(".atoms.")[-1].split(".")[-2]
+            atom_mod = atom['run'].split(".atoms.")[-1].split(".")[0]
             atom_fqdn = "%s.objects.%s.atoms.%s" % (namespace,
                                                     obj_name.lower(),
                                                     atom_mod)
@@ -44,7 +43,7 @@ class Definition(objects.BaseObject):
 
         return ns.Namespace(attrs=raw_obj['attrs'],
                             enabled=raw_obj['enabled'],
-                            obj_list=raw_obj['list'],
+                            obj_list=raw_obj.get('list', ""),
                             obj_value=raw_obj['value'],
                             atoms=raw_obj.get('atoms', {}),
                             flows=raw_obj.get('flows', {}),
@@ -54,8 +53,8 @@ class Definition(objects.BaseObject):
         raw_ns = "namespace.%s" % namespace
 
         raw_flow = self._get_parsed_defs()[raw_ns]['flows'][flow_name]
-        flow_fqdn = "%s.flows" % namespace
-        flow_fqdn = "%s.%s" % (flow_fqdn, self.convert(flow_name))
+        flow_mod = raw_flow['run'].split(".flows.")[-1].split(".")[0]
+        flow_fqdn = "%s.flows.%s" % (namespace, flow_mod)
         flow_cls = getattr(importlib.import_module(flow_fqdn), flow_name)
         tendrl_ns.add_flow(flow_name, flow_cls)
 
@@ -63,15 +62,11 @@ class Definition(objects.BaseObject):
                             help=raw_flow['help'],
                             enabled=raw_flow['enabled'],
                             inputs=raw_flow['inputs'],
-                            pre_run=raw_flow['pre_run'],
-                            post_run=raw_flow['post_run'],
+                            pre_run=raw_flow.get('pre_run', []),
+                            post_run=raw_flow.get('post_run', []),
                             type=raw_flow['type'],
                             uuid=raw_flow['uuid']
                             )
-
-    def convert(self, name):
-        s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
-        return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
     def _get_parsed_defs(self):
         self._parsed_defs = yaml.safe_load(self.node_monitoring)

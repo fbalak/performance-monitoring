@@ -1,23 +1,6 @@
 # flake8: noqa
 data = """---
 namespace.tendrl.node_monitoring:
-  _meta:
-    platforms:
-        # platform_type supported by tendrl. One of these platforms and their
-        # corresponding versions must be reused in any of the definition files.
-        centos:
-          # platform_version
-          # Supported versions, in ascending order of release. This list, being
-          # ordered, enables the comparators used later in the file to function.
-          - 6.x
-          - 7.x
-        ubuntu:
-          - 15.04.x
-          - 15.10.x
-          - 16.04.x
-    storage_system_types:
-        ceph: namespace.tendrl.ceph_integration
-        gluster: namespace.tendrl.gluster_integration
   objects:
     Config:
       attrs:

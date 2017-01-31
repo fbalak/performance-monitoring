@@ -1,4 +1,3 @@
-from tendrl.commons.etcdobj import EtcdObj
 from tendrl.commons.utils import service_status
 from tendrl.node_monitoring import objects
 
@@ -13,7 +12,7 @@ class Service(objects.NodeMonitoringBaseObject):
         self.running = running or service_detail['running']
         self.service = service
         self.exists = exists or service_detail['exists']
-        self._etcd_cls = _ServiceEtcd
+        self._etcd_cls = None
 
     def get_service_info(self, service_name):
         service = service_status.ServiceStatus(
@@ -21,18 +20,3 @@ class Service(objects.NodeMonitoringBaseObject):
             tendrl_ns.config['tendrl_ansible_exec_file']
         )
         return {"exists": service.exists(), "running": service.status()}
-
-
-class _ServiceEtcd(EtcdObj):
-    """A table of the service, lazily updated
-
-    """
-    __name__ = 'nodes/%s/Service/%s'
-    _tendrl_cls = Service
-
-    def render(self):
-        self.__name__ = self.__name__ % (
-            tendrl_ns.node_context.node_id,
-            self.service
-        )
-        return super(_ServiceEtcd, self).render()

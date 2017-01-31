@@ -2,7 +2,7 @@ import gevent.event
 import gevent.greenlet
 import logging
 import signal
-from tendrl.commons import jobs
+from tendrl.commons import manager as commons_manager
 from tendrl.node_monitoring.central_store \
     import NodeMonitoringEtcdCentralStore
 
@@ -10,21 +10,15 @@ from tendrl.node_monitoring.central_store \
 LOG = logging.getLogger(__name__)
 
 
-class Manager(object):
+class NodeMonitoringManager(commons_manager.Manager):
     def __init__(self):
-        self._job_consumer_thread = jobs.JobConsumerThread()
-
-    def stop(self):
-        LOG.info("%s stopping" % self.__class__.__name__)
-        self.job_consumer_thread.stop()
-
-    def start(self):
-        LOG.info("%s starting" % self.__class__.__name__)
-        self._job_consumer_thread.start()
-
-    def join(self):
-        LOG.info("%s joining" % self.__class__.__name__)
-        self._job_consumer_thread.join()
+        super(
+            NodeMonitoringManager,
+            self
+        ).__init__(
+            None,
+            tendrl_ns.central_store_thread
+        )
 
 
 def main():
@@ -35,7 +29,7 @@ def main():
     tendrl_ns.config.save()
     tendrl_ns.tendrl_context.save()
 
-    manager = Manager()
+    manager = NodeMonitoringManager()
     manager.start()
 
     def shutdown():

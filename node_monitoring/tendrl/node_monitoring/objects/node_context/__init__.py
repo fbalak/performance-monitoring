@@ -3,7 +3,6 @@ import os
 import socket
 import uuid
 
-from tendrl.commons.etcdobj import EtcdObj
 from tendrl.commons.utils import cmd_utils
 
 from tendrl.node_monitoring import objects
