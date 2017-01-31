@@ -4,3 +4,7 @@
 
 collectd
 collectd-ping
+Jinja2
+ansible
+tendrl-commons
+namespaces

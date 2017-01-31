@@ -2,11 +2,13 @@
 # of appearance. Changing the order has an impact on the overall integration
 # process, which may cause wedges in the gate later.
 
-python-etcd
-python-dateutil
-gevent>=1.0
-greenlet>=0.3.2
-msgpack-python
-pytz
-flask
 Flask-API
+python-carbon
+python-whisper
+graphite-web
+flask
+python-etcd
+six
+PyYAML
+namespaces
+tendrl-commons
