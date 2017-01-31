@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name="tendrl-performance-monitoring",
-    version="1.1",
+    version="1.2",
     packages=find_packages(exclude=["*.tests", "*.tests.*", "tests.*",
                                     "tests"]),
     namespace_packages=['tendrl'],
@@ -14,7 +14,7 @@ setup(
     zip_safe=False,
     entry_points={
         'console_scripts': ['tendrl-performance-monitoring = '
-                            'tendrl.performance_monitoring.manager.manager'
+                            'tendrl.performance_monitoring.manager'
                             ':main'
                             ]
     }
