@@ -11,8 +11,8 @@ LOG = logging.getLogger(__name__)
 class GraphitePlugin(TimeSeriesDBPlugin):
 
     def intialize(self, config):
-        self.host = config.get('time_series', 'time_series_db_server')
-        self.port = config.get('time_series', 'time_series_db_port')
+        self.host = tendrl_ns.config.data['time_series_db_server']
+        self.port = tendrl_ns.config.data['time_series_db_port']
         self.prefix = 'collectd'
 
     def get_metric_stats(self, entity_name, metric_name, time=None):
