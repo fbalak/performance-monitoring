@@ -25,7 +25,7 @@ LoadPlugin "aggregation"
 </Plugin>
 
 <Plugin "exec">
-    NotificationExec "skyring-user" "{{ moduledirconfig }}handle_collectd_notification.py"
+    NotificationExec "tendrl-user" "{{ moduledirconfig }}handle_collectd_notification.py"
 </Plugin>
 
 Include "/etc/collectd.d/*.conf"
