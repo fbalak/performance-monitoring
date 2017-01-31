@@ -121,12 +121,6 @@ class Summarise(multiprocessing.Process):
             alert_count == 0
         ):
             return
-        #tendrl_ns.old_summary = \
-        #    tendrl_ns.performance_monitoring.objects.\
-        #    PerformanceMonitoringSummary(
-        #        node
-        #    )
-        #tendrl_ns.old_summary.read()
         try:
             old_summary = PerformanceMonitoringSummary(
                 node,
