@@ -1,11 +1,13 @@
-import ast
 import etcd
 from flask import Flask
 from flask import request
+from flask import Response
 import json
 import logging
 from multiprocessing import Event
 from multiprocessing import Process
+from tendrl.performance_monitoring.exceptions \
+    import TendrlPerformanceMonitoringException
 import urllib2
 
 
@@ -20,9 +22,13 @@ def get_stats(node_id, resource_name):
         node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
             node_id
         )
-        return time_series_db_manager.\
+        return Response(
+            time_series_db_manager.\
             get_plugin().\
-            get_metric_stats(node_name, resource_name)
+            get_metric_stats(node_name, resource_name),
+            status=200,
+            mimetype='application/json'
+        )
     except (
         ValueError,
         urllib2.URLError,
@@ -32,7 +38,7 @@ def get_stats(node_id, resource_name):
         etcd.EtcdException,
         TypeError
     ) as ex:
-        return str(ex), 500
+        return Response(str(ex), status=500, mimetype='application/json')
 
 
 @app.route("/monitoring/nodes/<node_id>/monitored_types")
@@ -41,7 +47,11 @@ def get_stat_types(node_id):
         node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
             node_id
         )
-        return time_series_db_manager.get_plugin().get_metrics(node_name)
+        return Response (
+            time_series_db_manager.get_plugin().get_metrics(node_name),
+            status=200,
+            mimetype='application/json'
+        )
     except (
         ValueError,
         urllib2.URLError,
@@ -51,7 +61,11 @@ def get_stat_types(node_id):
         etcd.EtcdException,
         TypeError
     ) as ex:
-        return str(ex), 500
+        return Response(
+            str(ex),
+            status=500,
+            mimetype='application/json'
+        )
 
 
 @app.route("/monitoring/nodes/summary")
@@ -61,23 +75,34 @@ def get_node_summary():
         # anything else is simply ignored.
         is_filter = (
             len(request.args) == 1 and
-            request.args.items()[0][0] == 'node_id'
+            request.args.items()[0][0] == 'node_ids'
         )
         if is_filter:
-            node_list = ast.literal_eval(request.args.items()[0][1])
+            node_list = (request.args.items()[0][1]).split(",")
+            for index, node in enumerate(node_list):
+                node_list[index] = node_list[index].strip()
             ret_val = tendrl_ns.central_store_thread.get_node_summary(node_list)
         else:
             ret_val = tendrl_ns.central_store_thread.get_node_summary()
-        return json.dumps(ret_val)
+        return Response(
+            json.dumps(ret_val),
+            status=200,
+            mimetype='application/json'
+        )
     except (
         etcd.EtcdKeyNotFound,
         etcd.EtcdConnectionFailed,
         ValueError,
         SyntaxError,
         etcd.EtcdException,
+        TendrlPerformanceMonitoringException,
         TypeError
     ) as ex:
-        return str(ex), 500
+        return Response(
+            str(ex),
+            status=500,
+            mimetype='application/json'
+        )
 
 
 class APIManager(Process):

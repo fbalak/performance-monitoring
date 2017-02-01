@@ -113,8 +113,8 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
                 del current_node_summary['atoms']
                 summary.append(current_node_summary)
             return summary
-        except EtcdKeyNotFound:
-            return None
+        except EtcdKeyNotFound as ex:
+            raise TendrlPerformanceMonitoringException(str(ex))
         except (
             EtcdConnectionFailed,
             ValueError,
