@@ -1,5 +1,5 @@
 import socket
-from tendrl.commons.etcdobj.etcdobj import EtcdObj
+from tendrl.commons.etcdobj import EtcdObj
 from tendrl.commons import config as cmn_config
 
 from tendrl.performance_monitoring.defaults.default_values\
