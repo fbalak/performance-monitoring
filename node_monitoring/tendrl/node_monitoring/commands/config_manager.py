@@ -60,7 +60,7 @@ def main():
     return Service(
         'collectd',
         argv[1]
-    ).restart
+    ).restart()
 
 
 if __name__ == '__main__':
