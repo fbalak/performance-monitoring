@@ -1,6 +1,9 @@
 include LICENSE
 include AUTHORS
 include ChangeLog
+include requirements.txt
+include tendrl-performance-monitoring.service
+include version.py
 exclude .gitignore
 exclude .gitreview
 graft systemd
