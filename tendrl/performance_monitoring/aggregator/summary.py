@@ -114,34 +114,28 @@ class Summarise(multiprocessing.Process):
         memory_usage = self.get_net_host_memory_utilization(node)
         storage_usage = self.get_net_storage_utilization(node)
         alert_count = len(tendrl_ns.central_store_thread.get_alerts(node))
-        if (
-            cpu_usage is None and
-            memory_usage is None and
-            storage_usage is None and
-            alert_count == 0
-        ):
-            return
+        old_summary = PerformanceMonitoringSummary(
+            node,
+            cpu_usage={
+                'percent_used': None,
+                'updated_at': None
+            },
+            memory_usage={
+                'percent_used': None,
+                'updated_at': None,
+                'used': None,
+                'total': None
+            },
+            storage_usage={
+                'percent_used': None,
+                'total': None,
+                'used': None,
+                'updated_at': None
+            },
+            alert_count=0
+        )
         try:
-            old_summary = PerformanceMonitoringSummary(
-                node,
-                cpu_usage={
-                    'percent_used': '',
-                    'updated_at': ''
-                },
-                memory_usage={
-                    'percent_used': '',
-                    'updated_at': '',
-                    'used': '',
-                    'total': ''
-                },
-                storage_usage={
-                    'percent_used': '',
-                    'total': '',
-                    'used': '',
-                    'updated_at': ''
-                },
-                alert_count=0
-            ).load()
+            old_summary.load()
         except EtcdKeyNotFound:
             pass
         except EtcdConnectionFailed as ex:
