@@ -1,0 +1,14 @@
+[Unit]
+Description= Daemon to manage tendrl monitoring
+
+[Service]
+Type=simple
+Environment="HOME=/var/lib/tendrl"
+ExecStart=/usr/bin/tendrl-performance-monitoring
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
