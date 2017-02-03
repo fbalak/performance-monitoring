@@ -135,7 +135,8 @@ class Summarise(multiprocessing.Process):
             alert_count=0
         )
         try:
-            old_summary.load()
+            tendrl_ns.etcd_orm.client.read(old_summary.value)
+            old_summary = old_summary.load()
         except EtcdKeyNotFound:
             pass
         except EtcdConnectionFailed as ex:
