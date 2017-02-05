@@ -3,7 +3,6 @@
 # process, which may cause wedges in the gate later.
 
 collectd
-collectd-ping
 Jinja2
 ansible
 tendrl-commons

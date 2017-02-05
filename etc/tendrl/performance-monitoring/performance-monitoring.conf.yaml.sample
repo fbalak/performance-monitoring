@@ -9,6 +9,6 @@ log_cfg_path: /etc/tendrl/performance-monitoring/performance-monitoring_logging.
 log_level: DEBUG
 time_series_db: graphite
 time_series_db_server: 0.0.0.0
-time_series_db_port: 80
+time_series_db_port: 10080
 tendrl_ansible_exec_file: $HOME/.tendrl/performance-monitoring/ansible_exec
 

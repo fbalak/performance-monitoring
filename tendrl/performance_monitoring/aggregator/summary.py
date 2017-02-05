@@ -15,10 +15,9 @@ LOG = logging.getLogger(__name__)
 
 
 class Summarise(multiprocessing.Process):
-    def __init__(self, timeSeriesDbManager):
+    def __init__(self):
         super(Summarise, self).__init__()
         self._complete = multiprocessing.Event()
-        self.time_series_db_manager = timeSeriesDbManager
 
     ''' Get latest stats of resource as in param resource'''
     def get_latest_stat(self, node, resource):
@@ -26,11 +25,22 @@ class Summarise(multiprocessing.Process):
             node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
                 node
             )
-            stats = self.time_series_db_manager.get_plugin().get_metric_stats(
+            stats = tendrl_ns.time_series_db_manager.get_plugin().get_metric_stats(
                 node_name,
                 resource,
                 'latest'
             )
+            if stats == "[]":
+                LOG.debug(
+                    'Failed to get latest stat of %s of node %s for node summary.'
+                    % (resource, node),
+                    exc_info=True
+                )
+                raise TendrlPerformanceMonitoringException(
+                    'Failed to get latest stat of %s of node %s for node summary.'
+                    % (resource, node),
+                    exc_info=True
+                )
             return float(re.search('Current:(.+?)Max', stats).group(1))
         except (ValueError, urllib2.URLError, AttributeError) as ex:
             LOG.debug(
@@ -45,11 +55,22 @@ class Summarise(multiprocessing.Process):
     def get_latest_stats(self, node, resource):
         try:
             node_name = tendrl_ns.central_store_thread.get_node_name_from_id(node)
-            stats = self.time_series_db_manager.get_plugin().get_metric_stats(
+            stats = tendrl_ns.time_series_db_manager.get_plugin().get_metric_stats(
                 node_name,
                 resource,
                 'latest'
             )
+            if stats == "[]":
+                LOG.debug(
+                    'Failed to get latest stats of %s of node %s for node summary.'
+                    % (resource, node),
+                    exc_info=True
+                )
+                raise TendrlPerformanceMonitoringException(
+                    'Failed to get latest stats of %s of node %s for node summary.'
+                    % (resource, node),
+                    exc_info=True
+                )
             return re.findall('Current:(.+?)Max', stats)
         except (ValueError, urllib2.URLError, AttributeError) as ex:
             LOG.debug(
@@ -164,9 +185,15 @@ class Summarise(multiprocessing.Process):
         tendrl_ns.summary.save()
 
     def calculate_host_summaries(self):
+        procs = []
         nodes = tendrl_ns.central_store_thread.get_node_ids()
         for node in nodes:
-            self.calculate_host_summary(node)
+            proc = multiprocessing.Process(target=self.calculate_host_summary, args=(node,))
+            procs.append(proc)
+            proc.start()
+        for proc in procs:
+            proc.join()
+            #self.calculate_host_summary(node)
 
     def run(self):
         while not self._complete.is_set():
