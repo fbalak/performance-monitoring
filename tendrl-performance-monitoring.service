@@ -6,7 +6,7 @@ Type=simple
 Environment="HOME=/var/lib/tendrl"
 ExecStart=/usr/bin/tendrl-performance-monitoring
 ExecReload=/bin/kill -HUP $MAINPID
-KillMode=process
+KillMode=control-group
 Restart=on-failure
 PrivateTmp=true
 
