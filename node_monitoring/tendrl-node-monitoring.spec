@@ -11,6 +11,8 @@ BuildRequires: pytest
 BuildRequires: systemd
 BuildRequires: python-mock
 
+Requires: ansible
+Requires: collectd
 Requires: python-jinja2
 Requires: tendrl-commons
 
