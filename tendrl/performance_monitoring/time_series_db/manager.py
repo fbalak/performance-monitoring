@@ -8,7 +8,6 @@ import six
 
 
 LOG = logging.getLogger(__name__)
-config = None
 
 
 class FailedToFetchTimeSeriesData(Exception):
@@ -28,7 +27,7 @@ class PluginMount(type):
     def register_plugin(cls, plugin):
         instance = plugin()
         cls.plugins.append(instance)
-        instance.intialize(config)
+        instance.intialize()
 
 
 @six.add_metaclass(PluginMount)
@@ -53,16 +52,14 @@ class TimeSeriesDBPlugin(object):
 
 class TimeSeriesDBManager(object):
 
-    def __init__(self, conf):
+    def __init__(self):
         # Since this is a singleton class the singleton framework ensures only
         # a single call to this constructor in the life time of the application
         # However wherever the class is attempted to be intialized, it tries to
         # match the constructor and hence the 2nd arguement is made to appear
         # as an optional arguement although it is enforced internally not be
         # optional due to reason stated above.
-        self.time_series_db = conf['time_series_db']
-        global config
-        config = conf
+        self.time_series_db = tendrl_ns.config.data['time_series_db']
         try:
             self.load_plugins()
         except (SyntaxError, ValueError, ImportError) as ex:

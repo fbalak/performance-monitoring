@@ -6,6 +6,7 @@ import multiprocessing
 import signal
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
+import time
 import uuid
 
 LOG = logging.getLogger(__name__)
@@ -73,6 +74,7 @@ class Configurator(multiprocessing.Process):
                     node_det is not None and
                     node_det['node_id'] not in self.configured_nodes
                 ):
+                    time.sleep(10)
                     self.init_monitoring_on_node(node_det)
                     self.configured_nodes.append(node_det['node_id'])
         except TendrlPerformanceMonitoringException:

@@ -1,10 +1,14 @@
+import etcd
+from flask import Flask
+from flask import request
+from flask import Response
+import json
 import logging
 import multiprocessing
 import os
 import signal
 from tendrl.commons.config import ConfigNotFound
 from tendrl.performance_monitoring.aggregator.summary import Summarise
-import tendrl.performance_monitoring.api.manager as api_manager
 from tendrl.performance_monitoring.central_store \
     import PerformanceMonitoringEtcdCentralStore
 from tendrl.performance_monitoring.configure.configurator import Configurator
@@ -17,52 +21,140 @@ from tendrl.performance_monitoring.objects.definition import Definition
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBManager
 from tendrl.commons.log import setup_logging
+import urllib2
 
 
+app = Flask(__name__)
 LOG = logging.getLogger(__name__)
 
+
+@app.route("/monitoring/nodes/<node_id>/<resource_name>/stats")
+def get_stats(node_id, resource_name):
+    try:
+        node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
+            node_id
+        )
+        return Response(
+            tendrl_ns.time_series_db_manager.\
+            get_plugin().\
+            get_metric_stats(node_name, resource_name),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        ValueError,
+        urllib2.URLError,
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        SyntaxError,
+        etcd.EtcdException,
+        TypeError
+    ) as ex:
+        return Response(str(ex), status=500, mimetype='application/json')
+
+
+@app.route("/monitoring/nodes/<node_id>/monitored_types")
+def get_stat_types(node_id):
+    try:
+        node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
+            node_id
+        )
+        return Response (
+            tendrl_ns.time_series_db_manager.get_plugin().get_metrics(node_name),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        ValueError,
+        urllib2.URLError,
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        SyntaxError,
+        etcd.EtcdException,
+        TypeError
+    ) as ex:
+        return Response(
+            str(ex),
+            status=500,
+            mimetype='application/json'
+        )
+
+
+@app.route("/monitoring/nodes/summary")
+def get_node_summary():
+    try:
+        # Only 1 filter that is the node list is the only supported filter
+        # anything else is simply ignored.
+        is_filter = (
+            len(request.args) == 1 and
+            request.args.items()[0][0] == 'node_ids'
+        )
+        if is_filter:
+            node_list = (request.args.items()[0][1]).split(",")
+            for index, node in enumerate(node_list):
+                node_list[index] = node_list[index].strip()
+            ret_val = tendrl_ns.central_store_thread.get_node_summary(node_list)
+        else:
+            ret_val = tendrl_ns.central_store_thread.get_node_summary()
+        return Response(
+            json.dumps(ret_val),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        ValueError,
+        SyntaxError,
+        etcd.EtcdException,
+        TendrlPerformanceMonitoringException,
+        TypeError
+    ) as ex:
+        return Response(
+            str(ex),
+            status=500,
+            mimetype='application/json'
+        )
 
 class TendrlPerformanceManager(object):
 
     def __init__(self):
         try:
-            api_server = tendrl_ns.config.data[
+            self.api_server = tendrl_ns.config.data[
                 'api_server_addr'
             ]
-            api_port = tendrl_ns.config.data[
+            self.api_port = tendrl_ns.config.data[
                 'api_server_port'
             ]
-            t_manager = TimeSeriesDBManager(
-                tendrl_ns.config.data
-            )
-            self.api_manager = api_manager.APIManager(
-                api_server,
-                api_port,
-                t_manager
-            )
             tendrl_ns.configurator_queue = multiprocessing.Queue()
             self.configure_monitoring = ConfigureMonitoring()
             self.configurator = Configurator()
-            self.node_summariser = Summarise(t_manager)
+            self.node_summariser = Summarise()
         except (ConfigNotFound, TendrlPerformanceMonitoringException):
             raise
 
     def start(self):
-        self.api_manager.start()
         self.configure_monitoring.start()
         self.configurator.start()
         self.node_summariser.start()
+        try:
+            app.run(host=self.api_server, port=self.api_port, threaded=True)
+        except (ValueError, urllib2.URLError) as ex:
+            LOG.error(
+                'Failed to start the api server. Error %s' % ex,
+                exc_info=True
+            )
+            self.stop()
 
     def stop(self):
         tendrl_ns.configurator_queue.close()
-        self.api_manager.stop()
         self.node_summariser.stop()
-        self.api_manager.terminate()
         os.system("ps -C tendrl-performance-monitoring -o pid=|xargs kill -9")
 
 
 def main():
     tendrl_ns.central_store_thread = PerformanceMonitoringEtcdCentralStore()
+    tendrl_ns.time_series_db_manager = TimeSeriesDBManager()
     tendrl_ns.monitoring_config_init_nodes = []
     tendrl_ns.definitions.save()
     tendrl_ns.config.save()
