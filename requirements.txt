@@ -2,12 +2,12 @@
 # of appearance. Changing the order has an impact on the overall integration
 # process, which may cause wedges in the gate later.
 
-python-carbon
-python-whisper
-graphite-web
-flask
+carbon>=0.9.15
+whisper>=0.9.15
+graphite-web>=0.9.15
+flask>=0.10.1
 python-etcd
 six
 PyYAML
-namespaces
-tendrl-commons
+gevent
+
