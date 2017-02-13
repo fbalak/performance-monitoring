@@ -5,5 +5,3 @@
 collectd
 Jinja2
 ansible
-tendrl-commons
-namespaces
