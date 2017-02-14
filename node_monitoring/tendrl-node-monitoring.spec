@@ -13,6 +13,7 @@ BuildRequires: python-mock
 
 Requires: ansible
 Requires: collectd
+Requires: python-gevent
 Requires: python-jinja2
 Requires: tendrl-commons
 
