@@ -1,16 +1,23 @@
 #!/usr/bin/python
 
-
-import json
-import socket
 from subprocess import check_output
 import sys
+import json
+import datetime
+from tendrl.commons.config import load_config
+from tendrl.commons.event import Event
+from tendrl.commons.message import Message
 
 tendrl_collectd_severity_map = {
     'FAILURE': 'CRITICAL',
     'WARNING': 'WARNING',
     'OK': 'INFO'
 }
+
+config = load_config(
+    'node-monitoring',
+    '/etc/tendrl/node-monitoring/node-monitoring.conf.yaml'
+)
 
 '''Collectd forks an instance of this plugin per threshold breach detected
 Read collectd detected threshold breach details from standard input of
@@ -64,14 +71,24 @@ exposed socket.'''
 
 
 def post_notification_to_node_agent_socket():
-    s = socket.socket()
-    host = "127.0.0.1"
-    port = 12345
-    s.connect((host, port))
     collectd_alert, collectd_message = get_notification()
     tendrl_alert = collectd_to_tendrl_alert(collectd_alert, collectd_message)
-    s.send(json.dumps(tendrl_alert))
-    s.shutdown(socket.SHUT_RDWR)
+    local_node_context = "/etc/tendrl/node-agent/NodeContext"
+    node_context_id = ''
+    with open(local_node_context) as f:
+        node_context_id = f.read()
+    tendrl_alert['node_id'] = node_context_id
+    Event(
+        Message(
+            "notice",
+            "alerting",
+            {
+                'message': json.dumps(tendrl_alert)
+            },
+            node_id=node_context_id
+        ),
+        socket_path=config['logging_socket_path']
+    )
 
 
 if __name__ == '__main__':
