@@ -31,25 +31,18 @@ class Summarise(multiprocessing.Process):
                 'latest'
             )
             if stats == "[]":
-                LOG.debug(
-                    'Failed to get latest stat of %s of node %s for node summary.'
-                    % (resource, node),
-                    exc_info=True
-                )
                 raise TendrlPerformanceMonitoringException(
-                    'Failed to get latest stat of %s of node %s for node summary.'
-                    % (resource, node),
-                    exc_info=True
+                    'Stats not yet available in time series db'
                 )
             return float(re.search('Current:(.+?)Max', stats).group(1))
-        except (ValueError, urllib2.URLError, AttributeError) as ex:
+        except TendrlPerformanceMonitoringException as ex:
             LOG.debug(
                 'Failed to get latest stat of %s of node %s for node summary.'
                 'Error %s'
                 % (resource, node, str(ex)),
                 exc_info=True
             )
-            raise TendrlPerformanceMonitoringException(ex)
+            raise ex
 
     ''' Get latest stats of resources matching wild cards in param resource'''
     def get_latest_stats(self, node, resource):
@@ -61,24 +54,17 @@ class Summarise(multiprocessing.Process):
                 'latest'
             )
             if stats == "[]":
-                LOG.debug(
-                    'Failed to get latest stats of %s of node %s for node summary.'
-                    % (resource, node),
-                    exc_info=True
-                )
                 raise TendrlPerformanceMonitoringException(
-                    'Failed to get latest stats of %s of node %s for node summary.'
-                    % (resource, node),
-                    exc_info=True
+                    'Stats not yet available in time series db'
                 )
             return re.findall('Current:(.+?)Max', stats)
-        except (ValueError, urllib2.URLError, AttributeError) as ex:
+        except TendrlPerformanceMonitoringException as ex:
             LOG.debug(
                 'Failed to get latest stats of %s of node %s for node summary'
                 'Error %s' % (resource, node, str(ex)),
                 exc_info=True
             )
-            raise TendrlPerformanceMonitoringException(ex)
+            raise ex
 
     def get_net_host_cpu_utilization(self, node):
         try:
@@ -136,7 +122,7 @@ class Summarise(multiprocessing.Process):
         storage_usage = self.get_net_storage_utilization(node)
         alert_count = len(tendrl_ns.central_store_thread.get_alerts(node))
         old_summary = PerformanceMonitoringSummary(
-            node,
+            node_id=node,
             cpu_usage={
                 'percent_used': None,
                 'updated_at': None
@@ -160,7 +146,7 @@ class Summarise(multiprocessing.Process):
             old_summary = old_summary.load()
         except EtcdKeyNotFound:
             pass
-        except EtcdConnectionFailed as ex:
+        except (EtcdConnectionFailed, Exception) as ex:
             LOG.error(
                 'Failed to fetch previously computed summary from etcd.'
                 'Error %s' % str(ex),

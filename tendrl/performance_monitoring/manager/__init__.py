@@ -85,6 +85,9 @@ def get_node_summary():
     try:
         # Only 1 filter that is the node list is the only supported filter
         # anything else is simply ignored.
+        summary = []
+        ret_code = 200
+        exs = ''
         is_filter = (
             len(request.args) == 1 and
             request.args.items()[0][0] == 'node_ids'
@@ -93,12 +96,14 @@ def get_node_summary():
             node_list = (request.args.items()[0][1]).split(",")
             for index, node in enumerate(node_list):
                 node_list[index] = node_list[index].strip()
-            ret_val = tendrl_ns.central_store_thread.get_node_summary(node_list)
+            summary, ret_code, exs = \
+                tendrl_ns.central_store_thread.get_node_summary(node_list)
         else:
-            ret_val = tendrl_ns.central_store_thread.get_node_summary()
+            summary, ret_code, exs = \
+                tendrl_ns.central_store_thread.get_node_summary()
         return Response(
-            json.dumps(ret_val),
-            status=200,
+            json.dumps(summary),
+            status=ret_code,
             mimetype='application/json'
         )
     except (

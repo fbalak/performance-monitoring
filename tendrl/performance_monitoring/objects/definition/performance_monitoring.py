@@ -22,7 +22,7 @@ namespace.tendrl.performance_monitoring:
         storage_usage:
           type: dict
         alert_count:
-          type: int
+          type: str
       enabled: true
       value: monitoring/summary/nodes/$NodeContext.node_id
       list: monitoring/summary/nodes

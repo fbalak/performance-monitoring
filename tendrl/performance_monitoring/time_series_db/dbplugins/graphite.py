@@ -1,5 +1,7 @@
 import ast
 import logging
+from tendrl.performance_monitoring.exceptions \
+    import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBPlugin
 import time
@@ -29,9 +31,9 @@ class GraphitePlugin(TimeSeriesDBPlugin):
             data = graph_conn.read()
             return data
         except (ValueError, urllib2.URLError, Exception) as ex:
-            LOG.error('Failed to fetch stats for metric %s of %s.Error %s ' % (
-                metric_name, entity_name, str(ex)), exc_info=True)
-            raise ex
+            LOG.error('Failed to fetch stats for metric %s of %s using url %s.Error %s ' % (
+                metric_name, entity_name, url, str(ex)), exc_info=True)
+            raise TendrlPerformanceMonitoringException(str(ex))
         finally:
             try:
                 graph_conn.close()
