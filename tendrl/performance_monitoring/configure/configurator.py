@@ -68,6 +68,7 @@ class Configurator(multiprocessing.Process):
             while not self._complete.is_set():
                 if self._complete.is_set() or tendrl_ns.configurator_queue._closed:
                     return
+                tendrl_ns.configurator_queue._sem.acquire(True, None)
                 node_det = tendrl_ns.configurator_queue.get()
                 if (
                     node_det is not None and
