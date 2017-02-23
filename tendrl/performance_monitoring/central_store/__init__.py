@@ -78,11 +78,12 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         return alerts_arr
 
     def get_node_summary(self, node_ids=None):
-        try:
-            summary = []
-            if node_ids is None:
-                node_ids = self.get_node_ids()
-            for node_id in node_ids:
+        summary = []
+        exs = ''
+        if node_ids is None:
+            node_ids = self.get_node_ids()
+        for node_id in node_ids:
+            try:
                 current_node_summary = PerformanceMonitoringSummary(
                     node_id,
                     cpu_usage={
@@ -112,16 +113,19 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
                 del current_node_summary['flows']
                 del current_node_summary['atoms']
                 summary.append(current_node_summary)
-            return summary
-        except EtcdKeyNotFound as ex:
-            raise TendrlPerformanceMonitoringException(str(ex))
-        except (
-            EtcdConnectionFailed,
-            ValueError,
-            SyntaxError,
-            TypeError
-        ) as ex:
-            raise TendrlPerformanceMonitoringException(str(ex))
+            except EtcdKeyNotFound:
+                exs = "%s.Failed to fetch summary for node with id: %s" % (
+                    exs,
+                    node_id
+                )
+                continue
+        if len(summary) == len(node_ids):
+            return summary, 200, None
+        else:
+            if len(summary) == 0:
+                return summary, 500, exs
+            else:
+                return summary, 206, exs
 
     def get_nodes_details(self):
         nodes_dets = []
