@@ -10,4 +10,4 @@ python-etcd
 six
 PyYAML
 gevent
-
+urllib3
