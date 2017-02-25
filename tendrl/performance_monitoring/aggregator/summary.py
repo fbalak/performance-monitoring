@@ -2,6 +2,7 @@ import datetime
 from etcd import EtcdConnectionFailed
 from etcd import EtcdKeyNotFound
 import logging
+import math
 import multiprocessing
 import re
 from tendrl.performance_monitoring.exceptions \
@@ -34,7 +35,15 @@ class Summarise(multiprocessing.Process):
                 raise TendrlPerformanceMonitoringException(
                     'Stats not yet available in time series db'
                 )
-            return float(re.search('Current:(.+?)Max', stats).group(1))
+            stat = re.search('Current:(.+?)Max', stats).group(1)
+            if math.isnan(float(stat)):
+                raise TendrlPerformanceMonitoringException(
+                    'Received nan for utilization %s of %s' % (
+                        resource,
+                        node
+                    )
+                )
+            return float(stat)
         except TendrlPerformanceMonitoringException as ex:
             LOG.debug(
                 'Failed to get latest stat of %s of node %s for node summary.'
@@ -98,11 +107,13 @@ class Summarise(multiprocessing.Process):
             used_stats = self.get_latest_stats(node, 'df-*.df_complex-used')
             used = 0.0
             for stat in used_stats:
-                used = used + float(stat)
+                if not math.isnan(float(stat)):
+                    used = used + float(stat)
             free_stats = self.get_latest_stats(node, 'df-*.df_complex-free')
             free = 0.0
             for stat in free_stats:
-                free = free + float(stat)
+                if not math.isnan(float(stat)):
+                    free = free + float(stat)
             if free + used == 0:
                 return None
             percent_used = float(used * 100) / float(free + used)
