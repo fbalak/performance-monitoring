@@ -5,3 +5,4 @@ etcd_port: 2379
 etcd_connection: 0.0.0.0
 log_cfg_path: /etc/tendrl/node-monitoring/node-monitoring_logging.yaml
 tendrl_ansible_exec_file: $HOME/.tendrl/node-monitoring/ansible_exec
+logging_socket_path: /var/run/tendrl/message.sock
