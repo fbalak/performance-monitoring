@@ -16,14 +16,12 @@ BuildRequires: python-urllib3
 
 Requires: graphite-web >= 0.9.15
 Requires: python-gevent
-Requires: python-msgpack
 Requires: python-flask >= 0.10.1
 Requires: python-etcd
 Requires: python-carbon >= 0.9.15
 Requires: python-six
 Requires: python-urllib3
 Requires: python-whisper >= 0.9.15
-Requires: pytz
 Requires: PyYAML
 Requires: tendrl-commons
 
