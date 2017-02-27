@@ -71,7 +71,7 @@ class Summarise(multiprocessing.Process):
             percent_user = self.get_latest_stat(node, 'cpu.percent-user')
             percent_system = self.get_latest_stat(node, 'cpu.percent-system')
             return {
-                'percent_used': (percent_user + percent_system),
+                'percent_used': str(percent_user + percent_system),
                 'updated_at': datetime.datetime.now().isoformat()
             }
         except TendrlPerformanceMonitoringException:
@@ -84,9 +84,9 @@ class Summarise(multiprocessing.Process):
             total = self.get_latest_stat(node, 'aggregation-memory-sum.memory')
             percent_used = self.get_latest_stat(node, 'memory.percent-used')
             return {
-                'used': used,
-                'percent_used': percent_used,
-                'total': total,
+                'used': str(used),
+                'percent_used': str(percent_used),
+                'total': str(total),
                 'updated_at': datetime.datetime.now().isoformat()
             }
         except TendrlPerformanceMonitoringException:
@@ -107,9 +107,9 @@ class Summarise(multiprocessing.Process):
                 return None
             percent_used = float(used * 100) / float(free + used)
             return {
-                'used': used,
-                'total': used + free,
-                'percent_used': percent_used,
+                'used': str(used),
+                'total': str(used + free),
+                'percent_used': str(percent_used),
                 'updated_at': datetime.datetime.now().isoformat()
             }
         except TendrlPerformanceMonitoringException:
@@ -124,20 +124,20 @@ class Summarise(multiprocessing.Process):
         old_summary = PerformanceMonitoringSummary(
             node_id=node,
             cpu_usage={
-                'percent_used': None,
-                'updated_at': None
+                'percent_used': '',
+                'updated_at': ''
             },
             memory_usage={
-                'percent_used': None,
-                'updated_at': None,
-                'used': None,
-                'total': None
+                'percent_used': '',
+                'updated_at': '',
+                'used': '',
+                'total': ''
             },
             storage_usage={
-                'percent_used': None,
-                'total': None,
-                'used': None,
-                'updated_at': None
+                'percent_used': '',
+                'total': '',
+                'used': '',
+                'updated_at': ''
             },
             alert_count=0
         )
