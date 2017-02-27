@@ -21,7 +21,6 @@ from tendrl.performance_monitoring.objects.definition import Definition
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBManager
 from tendrl.commons.log import setup_logging
-import urllib2
 
 
 app = Flask(__name__)
@@ -43,12 +42,12 @@ def get_stats(node_id, resource_name):
         )
     except (
         ValueError,
-        urllib2.URLError,
         etcd.EtcdKeyNotFound,
         etcd.EtcdConnectionFailed,
         SyntaxError,
         etcd.EtcdException,
-        TypeError
+        TypeError,
+        TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
 
@@ -66,12 +65,12 @@ def get_stat_types(node_id):
         )
     except (
         ValueError,
-        urllib2.URLError,
         etcd.EtcdKeyNotFound,
         etcd.EtcdConnectionFailed,
         SyntaxError,
         etcd.EtcdException,
-        TypeError
+        TypeError,
+        TendrlPerformanceMonitoringException
     ) as ex:
         return Response(
             str(ex),
@@ -144,7 +143,7 @@ class TendrlPerformanceManager(object):
         self.node_summariser.start()
         try:
             app.run(host=self.api_server, port=self.api_port, threaded=True)
-        except (ValueError, urllib2.URLError) as ex:
+        except (ValueError, TendrlPerformanceMonitoringException) as ex:
             LOG.error(
                 'Failed to start the api server. Error %s' % ex,
                 exc_info=True
