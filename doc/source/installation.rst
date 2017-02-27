@@ -53,11 +53,26 @@ enviroment which we have created during installation of *integration common*.
 
     Set the value of ``etcd_port`` to the port on which etcd is accessible
 
-    Set the value of ``time_series_db_server`` to the interface address on which time-series db rest apis are accessible
+    Set the value of ``time_series_db_server`` to the ip address of system on which time-series db(graphite) is installed
 
-    Set the value of ``time_series_db_port`` to the port on which time-series db rest apis are accessible
+    Set the value of ``time_series_db_port`` to the port on which time-series db rest apis are accessible(default for graphite as configured by tendrl is 10080)
 
-6. Run::
+    Note: time_series_db_server and time_series_db_port are included in configuration because this provides an option for time-series db to not necessarily be co-resident with performance-monitoring. However, if its not co-resident with performance-monitoring, it needs to be configured manually.
+
+6. Init graphite-db using ::
+
+    /usr/lib/python2.7/site-packages/graphite/manage.py syncdb --noinput
+    
+7. Allow httpd access to graphite.db ::
+
+    chown apache:apache /var/lib/graphite-web/graphite.db
+
+8. Start carbon-cache and httpd ::
+
+    service carbon-cache start
+    service httpd restart
+
+9. Run::
 
     $ tendrl-performance-monitoring
 
