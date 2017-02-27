@@ -16,11 +16,8 @@ from tendrl.performance_monitoring.configure.configure_monitoring \
     import ConfigureMonitoring
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
-from tendrl.performance_monitoring.objects.config import Config
-from tendrl.performance_monitoring.objects.definition import Definition
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBManager
-from tendrl.commons.log import setup_logging
 
 
 app = Flask(__name__)
@@ -120,6 +117,7 @@ def get_node_summary():
             mimetype='application/json'
         )
 
+
 class TendrlPerformanceManager(object):
 
     def __init__(self):
@@ -138,9 +136,9 @@ class TendrlPerformanceManager(object):
             raise
 
     def start(self):
-        self.configure_monitoring.start()
         self.configurator.start()
         self.node_summariser.start()
+        self.configure_monitoring.start()
         try:
             app.run(host=self.api_server, port=self.api_port, threaded=True)
         except (ValueError, TendrlPerformanceMonitoringException) as ex:
@@ -151,6 +149,7 @@ class TendrlPerformanceManager(object):
             self.stop()
 
     def stop(self):
+        self.configure_monitoring.stop()
         tendrl_ns.configurator_queue.close()
         self.node_summariser.stop()
         os.system("ps -C tendrl-performance-monitoring -o pid=|xargs kill -9")
