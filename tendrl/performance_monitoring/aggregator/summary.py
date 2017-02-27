@@ -9,8 +9,8 @@ from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.summary \
     import PerformanceMonitoringSummary
+import gevent
 import time
-import urllib2
 
 LOG = logging.getLogger(__name__)
 
@@ -182,15 +182,9 @@ class Summarise(multiprocessing.Process):
         tendrl_ns.summary.save()
 
     def calculate_host_summaries(self):
-        procs = []
         nodes = tendrl_ns.central_store_thread.get_node_ids()
         for node in nodes:
-            proc = multiprocessing.Process(target=self.calculate_host_summary, args=(node,))
-            procs.append(proc)
-            proc.start()
-        for proc in procs:
-            proc.join()
-            #self.calculate_host_summary(node)
+            gevent.spawn(self.calculate_host_summary, node)
 
     def run(self):
         while not self._complete.is_set():
