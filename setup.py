@@ -13,7 +13,7 @@ except ImportError:
 def extract_requirements(filename):
     with open(filename, 'r') as requirements_file:
         return [
-            x[:-1] for x in requirements_file.readlines()
+            x.strip() for x in requirements_file.readlines()
             if not x.startswith("#") and x[:-1] != ''
         ]
 
