@@ -1,5 +1,5 @@
 Name: tendrl-node-monitoring
-Version: 1.2
+Version: 1.2.1
 Release: 1%{?dist}
 BuildArch: noarch
 Summary: Module for Tendrl Performance Monitoring
