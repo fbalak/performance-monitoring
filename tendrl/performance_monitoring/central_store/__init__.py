@@ -72,10 +72,26 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         ) as ex:
             raise TendrlPerformanceMonitoringException(str(ex))
 
-    def get_alerts(self, node_ids=None):
-        alerts_arr = []
-        # Logic to be implemented once alerting module is functional
-        return alerts_arr
+    def get_alert_ids(self, node_id=None):
+        alert_ids = []
+        try:
+            alerts = tendrl_ns.etcd_orm.client.read(
+                '/alerting/nodes/%s' % node_id
+            )
+            for alert in alerts._children:
+                key_contents = alert['key'].split('/')
+                if len(key_contents) == 5:
+                    alert_ids.append(
+                        key_contents[4]
+                    )
+        except EtcdKeyNotFound as ex:
+            return alert_ids
+        except (
+            EtcdConnectionFailed,
+            EtcdException
+        ) as ex:
+            raise TendrlPerformanceMonitoringException(str(ex))
+        return alert_ids
 
     def get_node_summary(self, node_ids=None):
         summary = []

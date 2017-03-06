@@ -127,11 +127,18 @@ class Summarise(multiprocessing.Process):
             # Exception already handled
             return None
 
+    def get_alert_count(self, node):
+        try:
+            alert_ids = tendrl_ns.central_store_thread.get_alert_ids(node)
+            return len(alert_ids)
+        except TendrlPerformanceMonitoringException:
+            return 0
+
     def calculate_host_summary(self, node):
         cpu_usage = self.get_net_host_cpu_utilization(node)
         memory_usage = self.get_net_host_memory_utilization(node)
         storage_usage = self.get_net_storage_utilization(node)
-        alert_count = len(tendrl_ns.central_store_thread.get_alerts(node))
+        alert_count = self.get_alert_count(node)
         old_summary = PerformanceMonitoringSummary(
             node_id=node,
             cpu_usage={
@@ -150,7 +157,7 @@ class Summarise(multiprocessing.Process):
                 'used': '',
                 'updated_at': ''
             },
-            alert_count=0
+            alert_count=alert_count
         )
         try:
             tendrl_ns.etcd_orm.client.read(old_summary.value)
