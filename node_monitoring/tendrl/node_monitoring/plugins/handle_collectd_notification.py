@@ -60,6 +60,11 @@ def collectd_to_tendrl_alert(collectd_alert, collectd_message):
         'failure_max': collectd_alert['FailureMax'],
         'message': collectd_message,
     }
+    if (
+        'Host' in collectd_alert and
+        'cluster' in collectd_alert.get('Host')
+    ):
+        tags['cluster_id'] = collectd_alert.get('Host').split('_')[1]
     if 'PluginInstance' in collectd_alert:
         tags['plugin_instance'] = collectd_alert['PluginInstance']
     tendrl_alert['tags'] = tags
@@ -93,3 +98,4 @@ def post_notification_to_node_agent_socket():
 
 if __name__ == '__main__':
     post_notification_to_node_agent_socket()
+
