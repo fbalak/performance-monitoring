@@ -167,3 +167,26 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def save_performancemonitoringsummary(self, node_summary):
         tendrl_ns.etcd_orm.save(node_summary)
+
+    def get_cluster_ids(self):
+        cluster_ids = []
+        clusters = tendrl_ns.etcd_orm.client.read(
+            '/clusters'
+        )
+        for cluster in clusters._children:
+            key_contents = cluster['key'].split('/')
+            if len(key_contents) == 3:
+                cluster_id = key_contents[2]
+                cluster_ids.append(cluster_id)
+        return cluster_ids
+
+    def get_cluster_node_ids(self, cluster_id):
+        cluster_nodes = []
+        nodes = tendrl_ns.etcd_orm.client.read(
+            '/clusters/%s/nodes' % cluster_id
+        )
+        for node in nodes._children:
+            key_contents = node['key'].split('/')
+            if len(key_contents) == 5:
+                cluster_nodes.append(key_contents[4])
+        return cluster_nodes

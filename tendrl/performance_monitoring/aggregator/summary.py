@@ -35,6 +35,15 @@ class Summarise(multiprocessing.Process):
                 raise TendrlPerformanceMonitoringException(
                     'Stats not yet available in time series db'
                 )
+            stat = re.search('Current:(.+?)Max', stats)
+            if not stat:
+                raise TendrlPerformanceMonitoringException(
+                    'Failed to get latest stat of %s of node %s for summary'
+                    'Error: Current utilization not found' % (
+                        resource,
+                        node
+                    )
+                )
             stat = re.search('Current:(.+?)Max', stats).group(1)
             if math.isnan(float(stat)):
                 raise TendrlPerformanceMonitoringException(
@@ -135,6 +144,7 @@ class Summarise(multiprocessing.Process):
             return 0
 
     def calculate_host_summary(self, node):
+        gevent.sleep(1)
         cpu_usage = self.get_net_host_cpu_utilization(node)
         memory_usage = self.get_net_host_memory_utilization(node)
         storage_usage = self.get_net_storage_utilization(node)
