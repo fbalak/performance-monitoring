@@ -1,4 +1,3 @@
-include requirements.txt
 include tendrl-node-monitoring.service
 include version.py
 exclude .gitignore

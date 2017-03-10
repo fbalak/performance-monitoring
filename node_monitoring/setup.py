@@ -10,16 +10,6 @@ except ImportError:
     pass
 
 
-def extract_requirements(filename):
-    with open(filename, 'r') as requirements_file:
-        return [
-            x[:-1] for x in requirements_file.readlines()
-            if not x.startswith("#") and x[:-1] != ''
-        ]
-
-install_requires = extract_requirements('requirements.txt')
-
-
 def read_module_contents():
     with open('version.py') as app_init:
         return app_init.read()
@@ -118,7 +108,13 @@ setup(
     author_email="rkanade@redhat.com",
     license="LGPL-2.1+",
     zip_safe=False,
-    install_requires=install_requires,
+    install_requires=[
+       "Jinja2",
+       "PyYAML",
+       "ansible", # not directly imported
+       "gevent",
+       "namespaces",
+       ],
     entry_points={
         'console_scripts': [
             'tendrl-node-monitoring = tendrl.node_monitoring.manager:main'
