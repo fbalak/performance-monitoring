@@ -110,11 +110,9 @@ setup(
     zip_safe=False,
     install_requires=[
        "Jinja2",
-       "PyYAML",
-       "ansible", # not directly imported
-       "gevent",
-       "namespaces",
+       "tendrl-commons",
        ],
+    include_package_data=True,
     entry_points={
         'console_scripts': [
             'tendrl-node-monitoring = tendrl.node_monitoring.manager:main'

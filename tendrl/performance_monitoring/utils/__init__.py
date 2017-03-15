@@ -2,6 +2,7 @@ from etcd import EtcdConnectionFailed
 from etcd import EtcdException
 import json
 import pkgutil
+from tendrl.commons.objects.job import Job
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 import uuid
@@ -29,12 +30,10 @@ def list_modules_in_package_path(package_path, prefix):
 
 def initiate_config_generation(node_det):
     try:
-        job = {
+        job_params = {
             'node_ids': [node_det.get('node_id')],
-            "run": 'tendrl.node_monitoring.flows.configure_collectd.ConfigureCollectd',
-            'status': 'new',
+            "run": 'node_monitoring.flows.ConfigureCollectd',
             'type': 'monitoring',
-            'integration_id': tendrl_ns.tendrl_context.integration_id,
             "parameters": {
                 'plugin_name': node_det['plugin'],
                 'plugin_conf_params': json.dumps(node_det['plugin_conf']),
@@ -42,10 +41,11 @@ def initiate_config_generation(node_det):
                 'Service.name': 'collectd',
             },
         }
-        tendrl_ns.etcd_orm.client.write(
-            "/queue/%s" % str(uuid.uuid4()),
-            json.dumps(job)
-        )
+        Job(
+            job_id=str(uuid.uuid4()),
+            status='new',
+            payload=json.dumps(job_params),
+        ).save()
     except (EtcdException, EtcdConnectionFailed, Exception) as ex:
         raise TendrlPerformanceMonitoringException(
             'Failed to intiate monitoring configuration for plugin \

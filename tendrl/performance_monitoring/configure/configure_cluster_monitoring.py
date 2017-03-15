@@ -19,11 +19,11 @@ class ConfigureClusterMonitoring(multiprocessing.Process):
     def get_cluster_ids(self):
         cluster_ids = []
         try:
-            clusters = tendrl_ns.etcd_orm.client.read(
+            clusters = NS.etcd_orm.client.read(
                 '/clusters'
             )
-            for cluster in clusters._children:
-                key_contents = cluster['key'].split('/')
+            for cluster in clusters.leaves:
+                key_contents = cluster.key.split('/')
                 if len(key_contents) == 3:
                     cluster_id = key_contents[2]
                     cluster_ids.append(cluster_id)

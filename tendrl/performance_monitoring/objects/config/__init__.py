@@ -1,18 +1,16 @@
 import socket
 from tendrl.commons.etcdobj import EtcdObj
 from tendrl.commons import config as cmn_config
-
+from tendrl.commons.objects import BaseObject
 from tendrl.performance_monitoring.defaults.default_values\
     import GetMonitoringDefaults
-from tendrl.performance_monitoring.objects \
-    import PerformanceMonitoringBaseObject
 
 
-class Config(PerformanceMonitoringBaseObject):
+class Config(BaseObject):
     def __init__(self, config=None, *args, **kwargs):
         super(Config, self).__init__(*args, **kwargs)
 
-        self.value = '_tendrl/config/performance_monitoring'
+        self.value = '_NS/performance_monitoring/config'
         if config is None:
             config = cmn_config.load_config(
                 'performance_monitoring',
@@ -31,5 +29,5 @@ class _ConfigEtcd(EtcdObj):
     """Config etcd object, lazily updated
 
     """
-    __name__ = '_tendrl/config/performance_monitoring'
+    __name__ = '_NS/performance_monitoring/config'
     _tendrl_cls = Config

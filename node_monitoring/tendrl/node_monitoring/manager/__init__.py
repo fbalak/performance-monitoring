@@ -3,8 +3,10 @@ import gevent.greenlet
 import logging
 import signal
 from tendrl.commons import manager as commons_manager
+from tendrl.commons import TendrlNS
 from tendrl.node_monitoring.central_store \
     import NodeMonitoringEtcdCentralStore
+from tendrl.node_monitoring import NodeMonitoringNS
 
 
 LOG = logging.getLogger(__name__)
@@ -17,17 +19,21 @@ class NodeMonitoringManager(commons_manager.Manager):
             self
         ).__init__(
             None,
-            tendrl_ns.central_store_thread
+            NS.central_store_thread
         )
 
 
 def main():
-    complete = gevent.event.Event()
-    tendrl_ns.central_store_thread = NodeMonitoringEtcdCentralStore()
+    NodeMonitoringNS()
+    TendrlNS()
+    NS.type = "monitoring"
 
-    tendrl_ns.definitions.save()
-    tendrl_ns.config.save()
-    tendrl_ns.tendrl_context.save()
+    complete = gevent.event.Event()
+    NS.central_store_thread = NodeMonitoringEtcdCentralStore()
+
+    NS.node_monitoring.definitions.save()
+    NS.node_monitoring.config.save()
+    NS.publisher_id = "node_monitoring"
 
     manager = NodeMonitoringManager()
     manager.start()

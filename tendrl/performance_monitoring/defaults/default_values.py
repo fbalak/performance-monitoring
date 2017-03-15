@@ -1,6 +1,6 @@
 import logging
+from ruamel import yaml
 import socket
-import yaml
 
 
 LOG = logging.getLogger(__name__)

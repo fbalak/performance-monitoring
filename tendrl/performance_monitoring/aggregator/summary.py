@@ -23,10 +23,10 @@ class Summarise(multiprocessing.Process):
     ''' Get latest stats of resource as in param resource'''
     def get_latest_stat(self, node, resource):
         try:
-            node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
+            node_name = NS.central_store_thread.get_node_name_from_id(
                 node
             )
-            stats = tendrl_ns.time_series_db_manager.get_plugin().get_metric_stats(
+            stats = NS.time_series_db_manager.get_plugin().get_metric_stats(
                 node_name,
                 resource,
                 'latest'
@@ -65,8 +65,8 @@ class Summarise(multiprocessing.Process):
     ''' Get latest stats of resources matching wild cards in param resource'''
     def get_latest_stats(self, node, resource):
         try:
-            node_name = tendrl_ns.central_store_thread.get_node_name_from_id(node)
-            stats = tendrl_ns.time_series_db_manager.get_plugin().get_metric_stats(
+            node_name = NS.central_store_thread.get_node_name_from_id(node)
+            stats = NS.time_series_db_manager.get_plugin().get_metric_stats(
                 node_name,
                 resource,
                 'latest'
@@ -138,7 +138,7 @@ class Summarise(multiprocessing.Process):
 
     def get_alert_count(self, node):
         try:
-            alert_ids = tendrl_ns.central_store_thread.get_alert_ids(node)
+            alert_ids = NS.central_store_thread.get_alert_ids(node)
             return len(alert_ids)
         except TendrlPerformanceMonitoringException:
             return 0
@@ -170,7 +170,7 @@ class Summarise(multiprocessing.Process):
             alert_count=alert_count
         )
         try:
-            tendrl_ns.etcd_orm.client.read(old_summary.value)
+            NS.etcd_orm.client.read(old_summary.value)
             old_summary = old_summary.load()
         except EtcdKeyNotFound:
             pass
@@ -187,8 +187,8 @@ class Summarise(multiprocessing.Process):
             memory_usage = old_summary.memory_usage
         if storage_usage is None:
             storage_usage = old_summary.storage_usage
-        tendrl_ns.summary = \
-            tendrl_ns.performance_monitoring.objects.\
+        NS.summary = \
+            NS.performance_monitoring.objects.\
             PerformanceMonitoringSummary(
                 node,
                 cpu_usage,
@@ -196,10 +196,10 @@ class Summarise(multiprocessing.Process):
                 storage_usage,
                 alert_count
             )
-        tendrl_ns.summary.save()
+        NS.summary.save()
 
     def calculate_host_summaries(self):
-        nodes = tendrl_ns.central_store_thread.get_node_ids()
+        nodes = NS.central_store_thread.get_node_ids()
         for node in nodes:
             gevent.spawn(self.calculate_host_summary, node)
 

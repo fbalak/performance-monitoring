@@ -6,6 +6,8 @@ from tendrl.commons import etcdobj
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.utils import initiate_config_generation
+from tendrl.performance_monitoring.defaults.default_values\
+    import GetMonitoringDefaults
 
 LOG = logging.getLogger(__name__)
 
@@ -13,7 +15,7 @@ LOG = logging.getLogger(__name__)
 class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
     def init_monitoring(self):
         try:
-            node_dets = tendrl_ns.central_store_thread.get_nodes_details()
+            node_dets = NS.central_store_thread.get_nodes_details()
             for node_det in node_dets:
                 if (
                     node_det['node_id'] not in
@@ -24,8 +26,8 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                         node_det['node_id']
                     )
             etcd_kwargs = {
-                'port': tendrl_ns.config.data['etcd_port'],
-                'host': tendrl_ns.config.data["etcd_connection"]
+                'port': int(NS.performance_monitoring.config.data['etcd_port']),
+                'host': NS.performance_monitoring.config.data["etcd_connection"]
             }
             self.etcd_orm = etcdobj.Server(etcd_kwargs=etcd_kwargs)
         except TendrlPerformanceMonitoringException as ex:
@@ -46,8 +48,8 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                 'fqdn': node_det['fqdn'],
                 'plugin': 'collectd',
                 'plugin_conf': {
-                    'master_name': tendrl_ns.config.data['master_name'],
-                    'interval': tendrl_ns.config.data['interval']
+                    'master_name': NS.performance_monitoring.config.data['master_name'],
+                    'interval': NS.performance_monitoring.config.data['interval']
                 }
             }
         )
@@ -58,13 +60,13 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                 'fqdn': node_det['fqdn'],
                 'plugin': 'dbpush',
                 'plugin_conf': {
-                    'master_name': tendrl_ns.config.data['master_name'],
-                    'interval': tendrl_ns.config.data['interval']
+                    'master_name': NS.performance_monitoring.config.data['master_name'],
+                    'interval': NS.performance_monitoring.config.data['interval']
                 }
             }
         )
         for plugin, plugin_config in \
-                tendrl_ns.config.data['thresholds']['node'].iteritems():
+                GetMonitoringDefaults().getDefaults()['thresholds']['node'].iteritems():
             gevent.sleep(0.1)
             initiate_config_generation(
                 {

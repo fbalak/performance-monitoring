@@ -1,18 +1,28 @@
 #!/usr/bin/python
 
+import sys
 from subprocess import check_output
 import sys
 import json
 import datetime
+is_collectd_imported = False
+if '/usr/lib64/collectd' in sys.path:
+    is_collectd_imported = True
+    sys.path.remove('/usr/lib64/collectd')
 from tendrl.commons.config import load_config
 from tendrl.commons.event import Event
 from tendrl.commons.message import Message
+
+if is_collectd_imported:
+    sys.path.append('/usr/lib64/collectd')
+
 
 tendrl_collectd_severity_map = {
     'FAILURE': 'CRITICAL',
     'WARNING': 'WARNING',
     'OK': 'INFO'
 }
+
 
 config = load_config(
     'node-monitoring',

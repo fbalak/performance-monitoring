@@ -17,7 +17,7 @@ class CephPlugin(SDSPlugin):
     def configure_monitoring(self, sds_tendrl_context):
         configs = []
         cluster_node_ids = \
-            tendrl_ns.central_store_thread.get_cluster_node_ids(
+            NS.central_store_thread.get_cluster_node_ids(
                 sds_tendrl_context['integration_id']
             )
         for node_id in cluster_node_ids:
@@ -29,7 +29,7 @@ class CephPlugin(SDSPlugin):
             )
             if 'mon' in sds_node_context['tags']:
                 for plugin, plugin_config in \
-                        tendrl_ns.config.data[
+                        NS.performance_monitoring.config.data[
                             'thresholds'
                         ][
                             self.name
