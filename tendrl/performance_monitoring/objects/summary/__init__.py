@@ -1,16 +1,12 @@
-import json
 import logging
 from tendrl.commons.etcdobj import EtcdObj
-from tendrl.commons.etcdobj import fields
-from tendrl.performance_monitoring.objects \
-    import PerformanceMonitoringBaseObject
-import tendrl.commons.central_store.utils as etcd_utils
+from tendrl.commons.objects import BaseObject
 
 
 LOG = logging.getLogger(__name__)
 
 
-class PerformanceMonitoringSummary(PerformanceMonitoringBaseObject):
+class PerformanceMonitoringSummary(BaseObject):
     def __init__(self,
                  node_id=None,
                  cpu_usage=None,

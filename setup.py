@@ -109,18 +109,14 @@ setup(
     license="LGPL-2.1+",
     zip_safe=False,
     install_requires=[
-        "PyYAML",
         "carbon>=0.9.15", # not directly imported
         "flask>=0.10.1",
-        "gevent",
         "graphite-web>=0.9.15", # not directly imported
-        "namespaces",
-        "python-etcd",
-        "six",
         "tendrl-commons",
         "urllib3",
         "whisper>=0.9.15", # not directly imported
         ],
+    include_package_data=True,
     entry_points={
         'console_scripts': ['tendrl-performance-monitoring = '
                             'tendrl.performance_monitoring.manager'
