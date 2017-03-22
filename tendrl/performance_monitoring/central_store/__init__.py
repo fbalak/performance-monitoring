@@ -2,12 +2,12 @@ from etcd import EtcdConnectionFailed
 from etcd import EtcdException
 from etcd import EtcdKeyNotFound
 import logging
+from ruamel import yaml
 from tendrl.commons import central_store
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.summary \
     import PerformanceMonitoringSummary
-import yaml
 
 
 LOG = logging.getLogger(__name__)
@@ -18,10 +18,10 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         super(PerformanceMonitoringEtcdCentralStore, self).__init__()
 
     def save_config(self, config):
-        tendrl_ns.etcd_orm.save(config)
+        NS.etcd_orm.save(config)
 
     def save_definition(self, definition):
-        tendrl_ns.etcd_orm.save(definition)
+        NS.etcd_orm.save(definition)
 
     def get_configs(self):
         # TODO(Anmol) : Attempt reading:
@@ -30,8 +30,8 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         #  /_tendrl/config/performance_monitoring
         try:
             configs = ''
-            conf = tendrl_ns.etcd_orm.client.read(
-                '/_tendrl/config/performance_monitoring'
+            conf = NS.etcd_orm.client.read(
+                '_NS/performance_monitoring/config'
             )
             configs = conf.value
             return yaml.safe_load(configs)
@@ -44,7 +44,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_node_name_from_id(self, node_id):
         try:
             node_name_path = '/nodes/%s/NodeContext/fqdn' % node_id
-            return tendrl_ns.etcd_orm.client.read(node_name_path).value
+            return NS.etcd_orm.client.read(node_name_path).value
         except (
             EtcdKeyNotFound,
             EtcdConnectionFailed,
@@ -58,9 +58,11 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_node_ids(self):
         try:
             node_ids = []
-            nodes_etcd = tendrl_ns.etcd_orm.client.read('/nodes')
-            for node in nodes_etcd._children:
-                node_ids.append(node['key'][len('/nodes/'):])
+            nodes_etcd = NS.etcd_orm.client.read('/nodes')
+            for node in nodes_etcd.leaves:
+                node_key_contents = node.key.split('/')
+                if len(node_key_contents) == 3:
+                    node_ids.append(node_key_contents[2])
             return node_ids
         except EtcdKeyNotFound:
             return []
@@ -72,10 +74,26 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         ) as ex:
             raise TendrlPerformanceMonitoringException(str(ex))
 
-    def get_alerts(self, node_ids=None):
-        alerts_arr = []
-        # Logic to be implemented once alerting module is functional
-        return alerts_arr
+    def get_alert_ids(self, node_id=None):
+        alert_ids = []
+        try:
+            alerts = NS.etcd_orm.client.read(
+                '/alerting/nodes/%s' % node_id
+            )
+            for alert in alerts.leaves:
+                key_contents = alert.key.split('/')
+                if len(key_contents) == 5:
+                    alert_ids.append(
+                        key_contents[4]
+                    )
+        except EtcdKeyNotFound as ex:
+            return alert_ids
+        except (
+            EtcdConnectionFailed,
+            EtcdException
+        ) as ex:
+            raise TendrlPerformanceMonitoringException(str(ex))
+        return alert_ids
 
     def get_node_summary(self, node_ids=None):
         summary = []
@@ -130,15 +148,15 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_nodes_details(self):
         nodes_dets = []
         try:
-            nodes = tendrl_ns.etcd_orm.client.read('/nodes/', recursive=True)
-            for node in nodes._children:
-                if node['key'].startswith('/nodes/'):
+            nodes = NS.etcd_orm.client.read('/nodes/', recursive=True)
+            for node in nodes.leaves:
+                if node.key.startswith('/nodes/'):
                     node_id = (
-                        node['key'][len('/nodes/'):]
+                        node.key[len('/nodes/'):]
                     ).encode('ascii', 'ignore')
                     fqdn = (
-                        tendrl_ns.etcd_orm.client.read(
-                            '%s/NodeContext/fqdn' % (node['key']),
+                        NS.etcd_orm.client.read(
+                            '%s/NodeContext/fqdn' % (node.key),
                             recursive=True
                         ).value
                     ).encode('ascii', 'ignore')
@@ -150,4 +168,15 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             raise TendrlPerformanceMonitoringException(str(ex))
 
     def save_performancemonitoringsummary(self, node_summary):
-        tendrl_ns.etcd_orm.save(node_summary)
+        NS.etcd_orm.save(node_summary)
+
+    def get_cluster_node_ids(self, cluster_id):
+        cluster_nodes = []
+        nodes = NS.etcd_orm.client.read(
+            '/clusters/%s/nodes' % cluster_id
+        )
+        for node in nodes.leaves:
+            key_contents = node.key.split('/')
+            if len(key_contents) == 5:
+                cluster_nodes.append(key_contents[4])
+        return cluster_nodes

@@ -1,14 +1,32 @@
 interval: 600
 thresholds:
-  cpu:
-    Warning: 80
-    Failure: 90
-  mount_point:
-    Warning: 80
-    Failure: 90
-  memory:
-    Warning: 80
-    Failure: 90
-  swap:
-    Warning: 50
-    Failure: 70
+  node:
+    cpu:
+      Warning: 80
+      Failure: 90
+    mount_point:
+      Warning: 80
+      Failure: 90
+    memory:
+      Warning: 80
+      Failure: 90
+    swap:
+      Warning: 50
+      Failure: 70
+  glusterfs:
+    cluster_utilization:
+      Warning: 75
+      Failure: 90
+    volume_utilization:
+      Warning: 75
+      Failure: 90
+  ceph:
+    cluster_utilization:
+      Warning: 75
+      Failure: 90
+    pool_utilization:
+      Warning: 75
+      Failure: 90
+    osd_utilization:
+      Warning: 85
+      Failure: 95

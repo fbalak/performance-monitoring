@@ -1,18 +1,28 @@
 #!/usr/bin/python
 
+import sys
 from subprocess import check_output
 import sys
 import json
 import datetime
+is_collectd_imported = False
+if '/usr/lib64/collectd' in sys.path:
+    is_collectd_imported = True
+    sys.path.remove('/usr/lib64/collectd')
 from tendrl.commons.config import load_config
 from tendrl.commons.event import Event
 from tendrl.commons.message import Message
+
+if is_collectd_imported:
+    sys.path.append('/usr/lib64/collectd')
+
 
 tendrl_collectd_severity_map = {
     'FAILURE': 'CRITICAL',
     'WARNING': 'WARNING',
     'OK': 'INFO'
 }
+
 
 config = load_config(
     'node-monitoring',
@@ -60,6 +70,11 @@ def collectd_to_tendrl_alert(collectd_alert, collectd_message):
         'failure_max': collectd_alert['FailureMax'],
         'message': collectd_message,
     }
+    if (
+        'Host' in collectd_alert and
+        'cluster' in collectd_alert.get('Host')
+    ):
+        tags['cluster_id'] = collectd_alert.get('Host').split('_')[1]
     if 'PluginInstance' in collectd_alert:
         tags['plugin_instance'] = collectd_alert['PluginInstance']
     tendrl_alert['tags'] = tags
@@ -93,3 +108,4 @@ def post_notification_to_node_agent_socket():
 
 if __name__ == '__main__':
     post_notification_to_node_agent_socket()
+

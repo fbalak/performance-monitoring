@@ -10,10 +10,7 @@ class NodeMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         super(NodeMonitoringEtcdCentralStore, self).__init__()
 
     def save_config(self, config):
-        tendrl_ns.etcd_orm.save(config)
+        NS.etcd_orm.save(config)
 
     def save_definition(self, definition):
-        tendrl_ns.etcd_orm.save(definition)
-
-    def save_tendrlcontext(self, tendrl_context):
-        tendrl_ns.etcd_orm.save(tendrl_context)
+        NS.etcd_orm.save(definition)

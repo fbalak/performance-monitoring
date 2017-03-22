@@ -8,17 +8,19 @@ import multiprocessing
 import os
 import signal
 from tendrl.commons.config import ConfigNotFound
+from tendrl.commons import TendrlNS
+from tendrl.performance_monitoring import PerformanceMonitoringNS
 from tendrl.performance_monitoring.aggregator.summary import Summarise
 from tendrl.performance_monitoring.central_store \
     import PerformanceMonitoringEtcdCentralStore
-from tendrl.performance_monitoring.configure.configurator import Configurator
-from tendrl.performance_monitoring.configure.configure_monitoring \
-    import ConfigureMonitoring
+from tendrl.performance_monitoring.configure.configure_cluster_monitoring\
+    import ConfigureClusterMonitoring
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBManager
-
+from tendrl.performance_monitoring.configure.configure_node_monitoring \
+    import ConfigureNodeMonitoring
 
 app = Flask(__name__)
 LOG = logging.getLogger(__name__)
@@ -27,11 +29,11 @@ LOG = logging.getLogger(__name__)
 @app.route("/monitoring/nodes/<node_id>/<resource_name>/stats")
 def get_stats(node_id, resource_name):
     try:
-        node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
+        node_name = NS.central_store_thread.get_node_name_from_id(
             node_id
         )
         return Response(
-            tendrl_ns.time_series_db_manager.\
+            NS.time_series_db_manager.\
             get_plugin().\
             get_metric_stats(node_name, resource_name),
             status=200,
@@ -52,11 +54,11 @@ def get_stats(node_id, resource_name):
 @app.route("/monitoring/nodes/<node_id>/monitored_types")
 def get_stat_types(node_id):
     try:
-        node_name = tendrl_ns.central_store_thread.get_node_name_from_id(
+        node_name = NS.central_store_thread.get_node_name_from_id(
             node_id
         )
         return Response (
-            tendrl_ns.time_series_db_manager.get_plugin().get_metrics(node_name),
+            NS.time_series_db_manager.get_plugin().get_metrics(node_name),
             status=200,
             mimetype='application/json'
         )
@@ -93,10 +95,10 @@ def get_node_summary():
             for index, node in enumerate(node_list):
                 node_list[index] = node_list[index].strip()
             summary, ret_code, exs = \
-                tendrl_ns.central_store_thread.get_node_summary(node_list)
+                NS.central_store_thread.get_node_summary(node_list)
         else:
             summary, ret_code, exs = \
-                tendrl_ns.central_store_thread.get_node_summary()
+                NS.central_store_thread.get_node_summary()
         return Response(
             json.dumps(summary),
             status=ret_code,
@@ -122,23 +124,25 @@ class TendrlPerformanceManager(object):
 
     def __init__(self):
         try:
-            self.api_server = tendrl_ns.config.data[
+            self.api_server = NS.performance_monitoring.config.data[
                 'api_server_addr'
             ]
-            self.api_port = tendrl_ns.config.data[
-                'api_server_port'
-            ]
-            tendrl_ns.configurator_queue = multiprocessing.Queue()
-            self.configure_monitoring = ConfigureMonitoring()
-            self.configurator = Configurator()
+            self.api_port = int(
+                NS.performance_monitoring.config.data[
+                    'api_server_port'
+                ]
+            )
+            NS.configurator_queue = multiprocessing.Queue()
+            self.configure_cluster_monitoring = ConfigureClusterMonitoring()
             self.node_summariser = Summarise()
+            self.configure_node_monitoring = ConfigureNodeMonitoring()
         except (ConfigNotFound, TendrlPerformanceMonitoringException):
             raise
 
     def start(self):
-        self.configurator.start()
         self.node_summariser.start()
-        self.configure_monitoring.start()
+        self.configure_cluster_monitoring.start()
+        self.configure_node_monitoring.start()
         try:
             app.run(host=self.api_server, port=self.api_port, threaded=True)
         except (ValueError, TendrlPerformanceMonitoringException) as ex:
@@ -149,18 +153,21 @@ class TendrlPerformanceManager(object):
             self.stop()
 
     def stop(self):
-        self.configure_monitoring.stop()
-        tendrl_ns.configurator_queue.close()
+        self.configure_cluster_monitoring.stop()
+        self.configure_node_monitoring.stop()
+        NS.configurator_queue.close()
         self.node_summariser.stop()
         os.system("ps -C tendrl-performance-monitoring -o pid=|xargs kill -9")
 
 
 def main():
-    tendrl_ns.central_store_thread = PerformanceMonitoringEtcdCentralStore()
-    tendrl_ns.time_series_db_manager = TimeSeriesDBManager()
-    tendrl_ns.monitoring_config_init_nodes = []
-    tendrl_ns.definitions.save()
-    tendrl_ns.config.save()
+    PerformanceMonitoringNS()
+    TendrlNS()
+    NS.central_store_thread = PerformanceMonitoringEtcdCentralStore()
+    NS.time_series_db_manager = TimeSeriesDBManager()
+    NS.performance_monitoring.definitions.save()
+    NS.performance_monitoring.config.save()
+    NS.publisher_id = "performance_monitoring"
 
     tendrl_perf_manager = TendrlPerformanceManager()
 

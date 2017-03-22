@@ -59,7 +59,7 @@ class TimeSeriesDBManager(object):
         # match the constructor and hence the 2nd arguement is made to appear
         # as an optional arguement although it is enforced internally not be
         # optional due to reason stated above.
-        self.time_series_db = tendrl_ns.config.data['time_series_db']
+        self.time_series_db = NS.performance_monitoring.config.data['time_series_db']
         try:
             self.load_plugins()
         except (SyntaxError, ValueError, ImportError) as ex:

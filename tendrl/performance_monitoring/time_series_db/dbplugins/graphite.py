@@ -14,8 +14,8 @@ LOG = logging.getLogger(__name__)
 class GraphitePlugin(TimeSeriesDBPlugin):
 
     def intialize(self):
-        self.host = tendrl_ns.config.data['time_series_db_server']
-        self.port = tendrl_ns.config.data['time_series_db_port']
+        self.host = NS.performance_monitoring.config.data['time_series_db_server']
+        self.port = NS.performance_monitoring.config.data['time_series_db_port']
         self.http = urllib3.PoolManager()
         self.prefix = 'collectd'
 

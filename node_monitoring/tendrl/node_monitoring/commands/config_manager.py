@@ -54,12 +54,11 @@ class ConfigManager(object):
 
 
 def main():
-    conf_name = argv[2]
-    data = json.loads(argv[3])
+    conf_name = argv[1]
+    data = json.loads(argv[2])
     ConfigManager(conf_name, data).generate_config_file()
     return Service(
-        'collectd',
-        argv[1]
+        'collectd'
     ).restart()
 
 
