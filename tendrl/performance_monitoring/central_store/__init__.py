@@ -122,14 +122,14 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
                     },
                     alert_count=0
                 ).load().to_json()
-                del current_node_summary['_etcd_cls']
-                del current_node_summary['value']
-                del current_node_summary['attrs']
-                del current_node_summary['obj_list']
-                del current_node_summary['enabled']
-                del current_node_summary['obj_value']
-                del current_node_summary['flows']
-                del current_node_summary['atoms']
+                if '_etcd_cls' in current_node_summary:
+                    del current_node_summary['_etcd_cls']
+                if 'value' in current_node_summary:
+                    del current_node_summary['value']
+                if '_defs' in current_node_summary:
+                    del current_node_summary['_defs']
+                if 'list' in current_node_summary:
+                    del current_node_summary['list']
                 summary.append(current_node_summary)
             except EtcdKeyNotFound:
                 exs = "%s.Failed to fetch summary for node with id: %s" % (
@@ -156,7 +156,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
                     ).encode('ascii', 'ignore')
                     fqdn = (
                         NS.etcd_orm.client.read(
-                            '%s/NodeContext/fqdn' % (node.key),
+                            '/nodes/%s/NodeContext/fqdn' % (node.key),
                             recursive=True
                         ).value
                     ).encode('ascii', 'ignore')
