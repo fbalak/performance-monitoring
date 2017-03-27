@@ -7,7 +7,11 @@ from tendrl.performance_monitoring.defaults.default_values\
 
 
 class Config(BaseObject):
+
+    internal = True
+
     def __init__(self, config=None, *args, **kwargs):
+        self._defs = {}
         super(Config, self).__init__(*args, **kwargs)
 
         self.value = '_NS/performance_monitoring/config'
