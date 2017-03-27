@@ -1,7 +1,7 @@
 ---
 namespace.performance_monitoring:
   objects:
-    PerformanceMonitoringSummary:
+    NodeSummary:
       attrs:
         node_id:
           type: str
@@ -14,7 +14,41 @@ namespace.performance_monitoring:
         alert_count:
           type: int
       enabled: true
-      value: monitoring/summary/nodes/$PerformanceMonitoringSummary.node_id
+      value: monitoring/summary/nodes/$NodeSummary.node_id
       list: monitoring/summary/nodes
       help: "Node Summary"
+    ClusterSummary:
+      attrs:
+        utilization:
+          type: dict
+        hosts_count:
+          type: dict
+        node_summaries:
+          type: List
+        sds_det:
+          type: dict
+        sds_type:
+          type: str
+        cluster_id:
+          type: str
+      enabled: true
+      value: monitoring/summary/clusters/$ClusterSummary.cluster_id
+      list: monitoring/summary/clusters
+      help: "Cluster Summary"
+    SystemSummary:
+      attrs:
+        utilization:
+          type: dict
+        hosts_count:
+          type: dict
+        sds_det:
+          type: dict
+        sds_type:
+          type: str
+        cluster_count:
+          type: dict
+      enabled: true
+      value: monitoring/summary/system/$SystemSummary.sds_type
+      list: monitoring/summary/system
+      help: "System Summary"
 tendrl_schema_version: 0.3
