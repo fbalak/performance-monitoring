@@ -19,7 +19,7 @@ class PerformanceMonitoringSummary(BaseObject):
         super(PerformanceMonitoringSummary, self).__init__(*args, **kwargs)
         self.node_id = node_id
         self.value = 'monitoring/summary/nodes/%s' % self.node_id
-        self._etcd_cls = _PerformanceMonitoringSummary
+        self._etcd_cls = _PerformanceMonitoringSummaryEtcd
         if cpu_usage is not None:
             self.cpu_usage = cpu_usage
         if memory_usage is not None:
@@ -32,7 +32,7 @@ class PerformanceMonitoringSummary(BaseObject):
         return self.__dict__
 
 
-class _PerformanceMonitoringSummary(EtcdObj):
+class _PerformanceMonitoringSummaryEtcd(EtcdObj):
     """A table of the node context, lazily updated
 
     """
@@ -41,4 +41,4 @@ class _PerformanceMonitoringSummary(EtcdObj):
 
     def render(self):
         self.__name__ = self.__name__ % self.node_id
-        return super(_PerformanceMonitoringSummary, self).render()
+        return super(_PerformanceMonitoringSummaryEtcd, self).render()
