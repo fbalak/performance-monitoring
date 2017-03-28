@@ -1,21 +1,17 @@
 #!/usr/bin/python
 
-import sys
-from subprocess import check_output
-import sys
+
 import json
-import datetime
+import sys
 is_collectd_imported = False
 if '/usr/lib64/collectd' in sys.path:
     is_collectd_imported = True
     sys.path.remove('/usr/lib64/collectd')
+from etcd import Client as etcd_client
+from subprocess import check_output
 from tendrl.commons.config import load_config
 from tendrl.commons.event import Event
 from tendrl.commons.message import Message
-
-if is_collectd_imported:
-    sys.path.append('/usr/lib64/collectd')
-
 
 tendrl_collectd_severity_map = {
     'FAILURE': 'CRITICAL',
@@ -28,6 +24,15 @@ config = load_config(
     'node-monitoring',
     '/etc/tendrl/node-monitoring/node-monitoring.conf.yaml'
 )
+
+central_store = etcd_client(
+    host=config['etcd_connection'],
+    port=config['etcd_port']
+)
+
+if is_collectd_imported:
+    sys.path.append('/usr/lib64/collectd')
+
 
 '''Collectd forks an instance of this plugin per threshold breach detected
 Read collectd detected threshold breach details from standard input of
@@ -88,11 +93,16 @@ exposed socket.'''
 def post_notification_to_node_agent_socket():
     collectd_alert, collectd_message = get_notification()
     tendrl_alert = collectd_to_tendrl_alert(collectd_alert, collectd_message)
-    local_node_context = "/etc/tendrl/node-agent/NodeContext"
-    node_context_id = ''
-    with open(local_node_context) as f:
-        node_context_id = f.read()
+    node_context_id = ""
+    machine_id = ""
+    with open('/etc/machine-id') as f:
+        machine_id = f.read().strip('\n')
+    node_context_id = central_store.read(
+        '/indexes/machine_id/%s' % machine_id
+    ).value
     tendrl_alert['node_id'] = node_context_id
+    if not node_context_id:
+        return
     Event(
         Message(
             "notice",
@@ -108,4 +118,3 @@ def post_notification_to_node_agent_socket():
 
 if __name__ == '__main__':
     post_notification_to_node_agent_socket()
-
