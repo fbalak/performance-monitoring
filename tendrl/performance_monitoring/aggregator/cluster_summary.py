@@ -1,5 +1,3 @@
-from etcd import EtcdKeyNotFound
-import logging
 import multiprocessing
 from tendrl.performance_monitoring.objects.cluster_summary \
     import ClusterSummary
@@ -102,9 +100,15 @@ class ClusterSummarise(multiprocessing.Process):
                     clusters
                 )
             except Exception as ex:
-                LOG.error(
-                    'Error caught computing summary. Error %s' % str(ex),
-                    exc_info=True
+                Event(
+                    ExceptionMessage(
+                        priority="error",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Error caught computing summary.',
+                            "exception": ex
+                            }
+                    )
                 )
             time.sleep(60)
 

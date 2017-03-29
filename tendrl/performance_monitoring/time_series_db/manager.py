@@ -1,13 +1,12 @@
 from abc import abstractmethod
 import importlib
 import inspect
-import logging
 import os
 import re
 import six
 
-
-LOG = logging.getLogger(__name__)
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 
 
 class FailedToFetchTimeSeriesData(Exception):
@@ -79,8 +78,16 @@ class TimeSeriesDBManager(object):
                 for name, cls in clsmembers:
                     exec("from %s import %s" % (plugin_name, name))
         except (SyntaxError, ValueError, ImportError) as ex:
-            LOG.error('Failed to load the time series db plugins. Error %s' %
-                      ex, exc_info=True)
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to load the time series db '
+                                        'plugins.',
+                             "exception": ex
+                             }
+                )
+            )
             raise ex
 
     def get_plugin(self):

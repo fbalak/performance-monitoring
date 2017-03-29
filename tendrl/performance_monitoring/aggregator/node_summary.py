@@ -1,18 +1,19 @@
 import datetime
 from etcd import EtcdConnectionFailed
 from etcd import EtcdKeyNotFound
-import logging
+import gevent
 import math
 import multiprocessing
 import re
+import time
+
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
+
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
-import gevent
-import time
-
-LOG = logging.getLogger(__name__)
 
 
 class NodeSummarise(multiprocessing.Process):
@@ -54,11 +55,16 @@ class NodeSummarise(multiprocessing.Process):
                 )
             return float(stat)
         except TendrlPerformanceMonitoringException as ex:
-            LOG.debug(
-                'Failed to get latest stat of %s of node %s for node summary.'
-                'Error %s'
-                % (resource, node, str(ex)),
-                exc_info=True
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to get latest stat of %s of '
+                                        'node %s for node summary.'
+                                        % (resource, node),
+                             "exception": ex
+                             }
+                )
             )
             raise ex
 
@@ -77,10 +83,16 @@ class NodeSummarise(multiprocessing.Process):
                 )
             return re.findall('Current:(.+?)Max', stats)
         except TendrlPerformanceMonitoringException as ex:
-            LOG.debug(
-                'Failed to get latest stats of %s of node %s for node summary'
-                'Error %s' % (resource, node, str(ex)),
-                exc_info=True
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to get latest stats of %s of '
+                                        'node %s for node summary.'
+                                        % (resource, node),
+                             "exception": ex
+                             }
+                )
             )
             raise ex
 
@@ -175,10 +187,15 @@ class NodeSummarise(multiprocessing.Process):
         except EtcdKeyNotFound:
             pass
         except (EtcdConnectionFailed, Exception) as ex:
-            LOG.error(
-                'Failed to fetch previously computed summary from etcd.'
-                'Error %s' % str(ex),
-                exc_info=True
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to fetch previously computed '
+                                        'summary from etcd.',
+                             "exception": ex
+                             }
+                )
             )
             return
         if cpu_usage is None:
