@@ -10,7 +10,9 @@ import signal
 from tendrl.commons.config import ConfigNotFound
 from tendrl.commons import TendrlNS
 from tendrl.performance_monitoring import PerformanceMonitoringNS
-from tendrl.performance_monitoring.aggregator.summary import Summarise
+from tendrl.performance_monitoring.aggregator.cluster_summary \
+    import ClusterSummarise
+from tendrl.performance_monitoring.aggregator.node_summary import NodeSummarise
 from tendrl.performance_monitoring.central_store \
     import PerformanceMonitoringEtcdCentralStore
 from tendrl.performance_monitoring.configure.configure_cluster_monitoring\
@@ -49,6 +51,48 @@ def get_stats(node_id, resource_name):
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
+
+
+@app.route("/monitoring/clusters/<cluster_id>/summary")
+def get_cluster_summary(cluster_id):
+    try:
+        cluster_summary = NS.central_store_thread.get_cluster_summary(
+            cluster_id
+        )
+        return Response(
+            json.dumps(cluster_summary),
+            status=200,
+            mimetype='application/json'
+        )
+    except TendrlPerformanceMonitoringException as ex:
+        return Response(
+            'Failed to fetch cluster summary for cluster %s.Error %s' % (
+                cluster_id,
+                str(ex)
+            ),
+            status=500,
+            mimetype='application/json'
+        )
+
+
+@app.route("/monitoring/system/<cluster_type>/summary")
+def get_system_summary(cluster_type):
+    try:
+        summary = NS.central_store_thread.get_system_summary(cluster_type)
+        return Response(
+            json.dumps(summary),
+            status=200,
+            mimetype='application/json'
+        )
+    except TendrlPerformanceMonitoringException as ex:
+        return Response(
+            'Failed to fetch %s system summary.Error %s' % (
+                cluster_type,
+                str(ex)
+            ),
+            status=500,
+            mimetype='application/json'
+        )
 
 
 @app.route("/monitoring/nodes/<node_id>/monitored_types")
@@ -134,13 +178,15 @@ class TendrlPerformanceManager(object):
             )
             NS.configurator_queue = multiprocessing.Queue()
             self.configure_cluster_monitoring = ConfigureClusterMonitoring()
-            self.node_summariser = Summarise()
+            self.node_summariser = NodeSummarise()
+            self.cluster_summariser = ClusterSummarise()
             self.configure_node_monitoring = ConfigureNodeMonitoring()
         except (ConfigNotFound, TendrlPerformanceMonitoringException):
             raise
 
     def start(self):
         self.node_summariser.start()
+        self.cluster_summariser.start()
         self.configure_cluster_monitoring.start()
         self.configure_node_monitoring.start()
         try:

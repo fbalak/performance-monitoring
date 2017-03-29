@@ -7,17 +7,17 @@ import multiprocessing
 import re
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
-from tendrl.performance_monitoring.objects.summary \
-    import PerformanceMonitoringSummary
+from tendrl.performance_monitoring.objects.node_summary \
+    import NodeSummary
 import gevent
 import time
 
 LOG = logging.getLogger(__name__)
 
 
-class Summarise(multiprocessing.Process):
+class NodeSummarise(multiprocessing.Process):
     def __init__(self):
-        super(Summarise, self).__init__()
+        super(NodeSummarise, self).__init__()
         self._complete = multiprocessing.Event()
 
     ''' Get latest stats of resource as in param resource'''
@@ -138,7 +138,7 @@ class Summarise(multiprocessing.Process):
 
     def get_alert_count(self, node):
         try:
-            alert_ids = NS.central_store_thread.get_alert_ids(node)
+            alert_ids = NS.central_store_thread.get_node_alert_ids(node)
             return len(alert_ids)
         except TendrlPerformanceMonitoringException:
             return 0
@@ -149,7 +149,7 @@ class Summarise(multiprocessing.Process):
         memory_usage = self.get_net_host_memory_utilization(node)
         storage_usage = self.get_net_storage_utilization(node)
         alert_count = self.get_alert_count(node)
-        old_summary = PerformanceMonitoringSummary(
+        old_summary = NodeSummary(
             node_id=node,
             cpu_usage={
                 'percent_used': '',
@@ -189,7 +189,7 @@ class Summarise(multiprocessing.Process):
             storage_usage = old_summary.storage_usage
         NS.summary = \
             NS.performance_monitoring.objects.\
-            PerformanceMonitoringSummary(
+            NodeSummary(
                 node,
                 cpu_usage,
                 memory_usage,

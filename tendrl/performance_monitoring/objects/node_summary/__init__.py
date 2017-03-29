@@ -6,7 +6,7 @@ from tendrl.commons.objects import BaseObject
 LOG = logging.getLogger(__name__)
 
 
-class PerformanceMonitoringSummary(BaseObject):
+class NodeSummary(BaseObject):
     def __init__(self,
                  node_id=None,
                  cpu_usage=None,
@@ -16,10 +16,10 @@ class PerformanceMonitoringSummary(BaseObject):
                  *args,
                  **kwargs
                  ):
-        super(PerformanceMonitoringSummary, self).__init__(*args, **kwargs)
+        super(NodeSummary, self).__init__(*args, **kwargs)
         self.node_id = node_id
         self.value = 'monitoring/summary/nodes/%s' % self.node_id
-        self._etcd_cls = _PerformanceMonitoringSummaryEtcd
+        self._etcd_cls = _NodeSummaryEtcd
         if cpu_usage is not None:
             self.cpu_usage = cpu_usage
         if memory_usage is not None:
@@ -32,13 +32,13 @@ class PerformanceMonitoringSummary(BaseObject):
         return self.__dict__
 
 
-class _PerformanceMonitoringSummaryEtcd(EtcdObj):
-    """A table of the node context, lazily updated
+class _NodeSummaryEtcd(EtcdObj):
+    """A table of the node summary, lazily updated
 
     """
     __name__ = 'monitoring/summary/nodes/%s'
-    _tendrl_cls = PerformanceMonitoringSummary
+    _tendrl_cls = NodeSummary
 
     def render(self):
         self.__name__ = self.__name__ % self.node_id
-        return super(_PerformanceMonitoringSummaryEtcd, self).render()
+        return super(_NodeSummaryEtcd, self).render()
