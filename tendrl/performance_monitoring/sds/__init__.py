@@ -158,14 +158,15 @@ class SDSMonitoringManager(object):
             mod = importlib.import_module(sds_fqdn)
             clsmembers = inspect.getmembers(mod, inspect.isclass)
             for name, cls in clsmembers:
-                if cls.name:
-                    self.supported_sds.append(cls.name)
+                if isinstance(cls, SDSPlugin):
+                    if cls.name:
+                        self.supported_sds.append(cls.name)
 
     def __init__(self):
         self.supported_sds = []
         self.load_sds_plugins()
 
-    def get_cluster_summary(cluster_id, cluster_det):
+    def get_cluster_summary(self, cluster_id, cluster_det):
         sds_name = cluster_det.get('TendrlContext', {}).get('sds_name')
         for plugin in SDSPlugin.plugins:
             if plugin.name == sds_name:
