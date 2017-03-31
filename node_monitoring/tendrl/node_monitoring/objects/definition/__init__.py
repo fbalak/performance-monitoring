@@ -9,7 +9,9 @@ from tendrl.commons import etcdobj
 
 
 class Definition(objects.BaseObject):
+    internal = True
     def __init__(self, *args, **kwargs):
+        self._defs = {}
         super(Definition, self).__init__(*args, **kwargs)
 
         self.value = '_NS/node_monitoring/definitions'

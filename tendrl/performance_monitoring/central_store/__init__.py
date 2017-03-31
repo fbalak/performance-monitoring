@@ -4,10 +4,15 @@ from etcd import EtcdKeyNotFound
 import logging
 from ruamel import yaml
 from tendrl.commons import central_store
+from tendrl.commons.utils.etcd_util import read as etcd_read
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
-from tendrl.performance_monitoring.objects.summary \
-    import PerformanceMonitoringSummary
+from tendrl.performance_monitoring.objects.cluster_summary \
+    import ClusterSummary
+from tendrl.performance_monitoring.objects.node_summary \
+    import NodeSummary
+from tendrl.performance_monitoring.objects.system_summary \
+    import SystemSummary
 
 
 LOG = logging.getLogger(__name__)
@@ -74,7 +79,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         ) as ex:
             raise TendrlPerformanceMonitoringException(str(ex))
 
-    def get_alert_ids(self, node_id=None):
+    def get_node_alert_ids(self, node_id=None):
         alert_ids = []
         try:
             alerts = NS.etcd_orm.client.read(
@@ -95,6 +100,26 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             raise TendrlPerformanceMonitoringException(str(ex))
         return alert_ids
 
+    def get_node_alerts(self, node_id):
+        alert_root = '/alerting/nodes/%s' % node_id
+        node_alerts = etcd_read(alert_root)
+        node_alerts_arr = []
+        for alert_id, node_alert in node_alerts.iteritems():
+            node_alerts_arr.append(node_alert)
+        return node_alerts_arr
+
+    def get_cluster_summary(self, cluster_id):
+        try:
+            return etcd_read('/monitoring/summary/clusters/%s' % cluster_id)
+        except Exception as ex:
+            TendrlPerformanceMonitoringException(str(ex))
+
+    def get_system_summary(self, cluster_type):
+        try:
+            return etcd_read('/monitoring/summary/system/%s' % cluster_type)
+        except Exception as ex:
+            TendrlPerformanceMonitoringException(str(ex))
+
     def get_node_summary(self, node_ids=None):
         summary = []
         exs = ''
@@ -102,7 +127,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             node_ids = self.get_node_ids()
         for node_id in node_ids:
             try:
-                current_node_summary = PerformanceMonitoringSummary(
+                current_node_summary = NodeSummary(
                     node_id,
                     cpu_usage={
                         'percent_used': '',
@@ -167,7 +192,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         except EtcdConnectionFailed as ex:
             raise TendrlPerformanceMonitoringException(str(ex))
 
-    def save_performancemonitoringsummary(self, node_summary):
+    def save_nodesummary(self, node_summary):
         NS.etcd_orm.save(node_summary)
 
     def get_cluster_node_ids(self, cluster_id):
@@ -180,3 +205,9 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             if len(key_contents) == 5:
                 cluster_nodes.append(key_contents[4])
         return cluster_nodes
+
+    def save_clustersummary(self, cluster_summary):
+        NS.etcd_orm.save(cluster_summary)
+
+    def save_systemsummary(self, system_summary):
+        NS.etcd_orm.save(system_summary)
