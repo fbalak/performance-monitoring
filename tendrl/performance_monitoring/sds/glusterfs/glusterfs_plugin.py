@@ -1,3 +1,4 @@
+import ast
 from tendrl.commons.utils.etcd_util import read as etcd_read_key
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
@@ -101,6 +102,10 @@ class GlusterFSPlugin(SDSPlugin):
                 cluster_volume_count = cluster_summary.sds_det.get(
                     'volume_status_wise_counts', {}
                 )
+                if isinstance(cluster_volume_count, unicode):
+                    cluster_volume_count = ast.literal_eval(
+                        cluster_volume_count.encode('ascii', 'replace')
+                    )
                 for status, count in cluster_volume_count:
                     volume_status_wise_counts[status] = \
                         volume_status_wise_counts.get(status, 0) + 1
@@ -112,6 +117,12 @@ class GlusterFSPlugin(SDSPlugin):
             if self.name in cluster_summary.sds_type:
                 cluster_most_used_volumes = \
                     cluster_summary.sds_det.get('most_used_volumes', {})
+                if isinstance(cluster_most_used_volumes, unicode):
+                    cluster_most_used_volumes = ast.literal_eval(
+                        cluster_most_used_volumes.encode(
+                            'ascii', 'replace'
+                        )
+                    )
                 most_used_volumes.append(cluster_most_used_volumes)
         most_used_volumes = \
             sorted(most_used_volumes, key=lambda k: k['percent_used'])
@@ -119,9 +130,6 @@ class GlusterFSPlugin(SDSPlugin):
         return most_used_volumes[:5]
 
     def compute_system_summary(self, cluster_summaries, clusters):
-        pass
-
-    def compute_system_summarys(self, cluster_summaries, clusters):
         SystemSummary(
             utilization=self.get_system_utilization(cluster_summaries),
             hosts_count=self.get_system_host_status_wise_counts(
