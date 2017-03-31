@@ -51,29 +51,34 @@ class ClusterSummarise(multiprocessing.Process):
         return node_summaries
 
     def parse_cluster(self, cluster_id, cluster_det):
+        utilization = cluster_det.get('Utilization', {})
+        used = 0
+        total = 0
+        percent_used = 0
+        if utilization.get('used_capacity'):
+            used = utilization.get('used_capacity')
+        elif utilization.get('used'):
+            used = utilization.get('used')
+        if utilization.get('raw_capacity'):
+            total = utilization.get('raw_capacity')
+        elif utilization.get('total'):
+            total = utilization.get('total')
+        if utilization.get('pcnt_used'):
+            percent_used = utilization.get('pcnt_used')
         return ClusterSummary(
             utilization={
-                'total': cluster_det.get(
-                    'Utilization', {}
-                ).get('raw_capacity') or
-                cluster_det.get(
-                    'Utilization', {}
-                ).get('total'),
-                'used': cluster_det.get(
-                    'Utilization', {}
-                ).get('used_capacity'),
-                'percent_used': cluster_det.get(
-                    'Utilization', {}
-                ).get('pcnt_used'),
+                'total': int(total),
+                'used': int(used),
+                'percent_used': float(percent_used)
             },
             hosts_count=self.parse_host_count(cluster_det.get('nodes')),
             sds_type=cluster_det.get('TendrlContext', {}).get('sds_name'),
             node_summaries=self.cluster_nodes_summary(
                 cluster_det.get('nodes', {}).keys()
             ),
-            sds_det=self.sds_monitoring_manager.get_cluster_summary( 
-                cluster_id, 
-                cluster_det 
+            sds_det=self.sds_monitoring_manager.get_cluster_summary(
+                cluster_id,
+                cluster_det
             ),
             cluster_id=cluster_id,
         )

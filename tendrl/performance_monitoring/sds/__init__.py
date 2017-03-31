@@ -85,12 +85,16 @@ class SDSPlugin(object):
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
                 net_utilization['total'] = \
-                    net_utilization['total'] + cluster_summary.utilization.get(
-                        'total', 0
+                    net_utilization['total'] + int(
+                        cluster_summary.utilization.get(
+                            'total', 0
+                        )
                 )
                 net_utilization['used'] = \
-                    net_utilization['used'] + cluster_summary.utilization.get(
-                        'used', 0
+                    net_utilization['used'] + int(
+                        cluster_summary.utilization.get(
+                            'used', 0
+                        )
                 )
                 if net_utilization['total'] > 0:
                     net_utilization['percent_used'] = (
@@ -111,7 +115,7 @@ class SDSPlugin(object):
             if self.name in cluster_summary.sds_type:
                 for status, counter in cluster_summary.hosts_count.iteritems():
                     status_wise_count[status] = \
-                        status_wise_count.get(status, 0) + counter
+                        status_wise_count.get(status, 0) + int(counter)
         return status_wise_count
 
     def get_services_count(self, cluster_det):
