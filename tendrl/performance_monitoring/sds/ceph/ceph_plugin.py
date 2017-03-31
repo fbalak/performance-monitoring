@@ -163,7 +163,14 @@ class CephPlugin(SDSPlugin):
             if self.name in cluster_summary.sds_type:
                 cluster_mon_count = \
                     cluster_summary.sds_det.get('mon_counts', {})
-                for status, count in cluster_mon_count:
+                if (
+                    isinstance(cluster_mon_count, unicode) and not
+                        isinstance(cluster_mon_count, dict)
+                ):
+                    cluster_mon_count = ast.literal_eval(
+                        cluster_mon_count.encode('ascii', 'ignore')
+                    )
+                for status, count in cluster_mon_count.iteritems():
                     mon_status_wise_counts[status] = \
                         mon_status_wise_counts.get(status, 0) + 1
         return mon_status_wise_counts
@@ -174,37 +181,57 @@ class CephPlugin(SDSPlugin):
             if self.name in cluster_summary.sds_type:
                 cluster_osd_count = \
                     cluster_summary.sds_det.get('osd_counts', {})
-                for status, count in cluster_osd_count:
+                if (
+                    isinstance(cluster_osd_count, unicode) and not
+                        isinstance(cluster_osd_count, dict)
+                ):
+                    cluster_osd_count = ast.literal_eval(
+                        cluster_osd_count.encode('ascii', 'ignore')
+                    )
+                for status, count in cluster_osd_count.iteritems():
                     osd_status_wise_counts[status] = \
-                        osd_status_wise_counts.get(status, 0) + 1
+                        osd_status_wise_counts.get(status, 0) + count
         return osd_status_wise_counts
 
     def get_system_max_used_pools(self, cluster_summaries):
-        most_used_pools = []
+        pools = []
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
                 cluster_most_used_pools = \
                     cluster_summary.sds_det.get('most_used_pools', {})
-                most_used_pools.append(cluster_most_used_pools)
+                if isinstance(cluster_most_used_pools, basestring):
+                    cluster_most_used_pools = ast.literal_eval(cluster_most_used_pools.encode('ascii', 'ignore'))
+                for pool in cluster_most_used_pools:
+                    if isinstance(pool, unicode):
+                        pool = pool.encode('ascii', 'ignore')
+                        pool = ast.literal_eval(pool)
+                    pools.append(pool)
         most_used_pools = \
-            sorted(most_used_pools, key=lambda k: k['percent_used'])
+            sorted(pools, key=lambda k: k['percent_used'])
         most_used_pools.reverse()
         return most_used_pools[:5]
 
     def get_system_max_used_rbds(self, cluster_summaries):
-        most_used_rbds = []
+        rbds = []
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
                 cluster_most_used_rbds = \
                     cluster_summary.sds_det.get('most_used_rbds', {})
-                most_used_rbds.append(cluster_most_used_rbds)
+                if (
+                    isinstance(cluster_most_used_rbds, unicode) and not
+                        isinstance(cluster_most_used_rbds, list)
+                ):
+                    cluster_most_used_rbds = ast.literal_eval(
+                        cluster_most_used_rbds.encode('ascii', 'ignore')
+                    )
+                rbds.extend(cluster_most_used_rbds)
         most_used_rbds = \
-            sorted(most_used_rbds, key=lambda k: k['percent_used'])
+            sorted(rbds, key=lambda k: k['percent_used'])
         most_used_rbds.reverse()
         return most_used_rbds[:5]
 
     def compute_system_summary(self, cluster_summaries, clusters):
-        system_summary = SystemSummary(
+        SystemSummary(
             utilization=self.get_system_utilization(cluster_summaries),
             hosts_count=self.get_system_host_status_wise_counts(
                 cluster_summaries
@@ -225,5 +252,4 @@ class CephPlugin(SDSPlugin):
                 )
             },
             sds_type=self.name
-        )
-        system_summary.save()
+        ).save()
