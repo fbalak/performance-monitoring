@@ -204,7 +204,7 @@ class CephPlugin(SDSPlugin):
         return most_used_rbds[:5]
 
     def compute_system_summary(self, cluster_summaries, clusters):
-        SystemSummary(
+        system_summary = SystemSummary(
             utilization=self.get_system_utilization(cluster_summaries),
             hosts_count=self.get_system_host_status_wise_counts(
                 cluster_summaries
@@ -225,4 +225,5 @@ class CephPlugin(SDSPlugin):
                 )
             },
             sds_type=self.name
-        ).save()
+        )
+        system_summary.save()

@@ -119,6 +119,9 @@ class GlusterFSPlugin(SDSPlugin):
         return most_used_volumes[:5]
 
     def compute_system_summary(self, cluster_summaries, clusters):
+        pass
+
+    def compute_system_summarys(self, cluster_summaries, clusters):
         SystemSummary(
             utilization=self.get_system_utilization(cluster_summaries),
             hosts_count=self.get_system_host_status_wise_counts(
