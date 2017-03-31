@@ -112,7 +112,7 @@ class CephPlugin(SDSPlugin):
         return osd_counts
 
     def get_mon_status_wise_counts(self, cluster_det):
-        mon_status_wise_counts = []
+        mon_status_wise_counts = {}
         outside_quorum = ast.literal_eval(
             cluster_det.get(
                 'maps', {}
@@ -221,9 +221,6 @@ class CephPlugin(SDSPlugin):
                     cluster_summaries
                 ),
                 'most_used_rbds': self.get_system_max_used_rbds(
-                    cluster_summaries
-                ),
-                'services_count': self.get_system_services_count(
                     cluster_summaries
                 )
             },

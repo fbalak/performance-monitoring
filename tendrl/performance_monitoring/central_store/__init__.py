@@ -110,17 +110,13 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def get_cluster_summary(self, cluster_id):
         try:
-            return ClusterSummary(
-                cluster_id=cluster_id
-            ).load().to_json()
+            return etcd_read('/monitoring/summary/clusters/%s' % cluster_id)
         except Exception as ex:
             TendrlPerformanceMonitoringException(str(ex))
 
     def get_system_summary(self, cluster_type):
         try:
-            return SystemSummary(
-                sds_type=cluster_type
-            ).load().to_json()
+            return etcd_read('/monitoring/summary/system/%s' % cluster_type)
         except Exception as ex:
             TendrlPerformanceMonitoringException(str(ex))
 
