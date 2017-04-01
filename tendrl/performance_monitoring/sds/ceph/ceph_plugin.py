@@ -81,9 +81,9 @@ class CephPlugin(SDSPlugin):
                 rbd_det['percent_used'] = 0
                 if rbd_det['provisioned'] != 0:
                     rbd_det['percent_used'] = (
-                        rbd_det['used'] * 100 * 1.0
+                        int(rbd_det['used']) * 100 * 1.0
                     ) / (
-                        rbd_det['provisioned'] * 1.0
+                        int(rbd_det['provisioned']) * 1.0
                     )
                 rbds.append(rbd_det)
         most_used_rbds = sorted(rbds, key=lambda k: k['percent_used'])
@@ -172,7 +172,7 @@ class CephPlugin(SDSPlugin):
                     )
                 for status, count in cluster_mon_count.iteritems():
                     mon_status_wise_counts[status] = \
-                        mon_status_wise_counts.get(status, 0) + 1
+                        mon_status_wise_counts.get(status, 0) + int(count)
         return mon_status_wise_counts
 
     def get_system_osd_status_wise_counts(self, cluster_summaries):
@@ -200,7 +200,9 @@ class CephPlugin(SDSPlugin):
                 cluster_most_used_pools = \
                     cluster_summary.sds_det.get('most_used_pools', {})
                 if isinstance(cluster_most_used_pools, basestring):
-                    cluster_most_used_pools = ast.literal_eval(cluster_most_used_pools.encode('ascii', 'ignore'))
+                    cluster_most_used_pools = ast.literal_eval(
+                        cluster_most_used_pools.encode('ascii', 'ignore')
+                    )
                 for pool in cluster_most_used_pools:
                     if isinstance(pool, unicode):
                         pool = pool.encode('ascii', 'ignore')
@@ -231,25 +233,30 @@ class CephPlugin(SDSPlugin):
         return most_used_rbds[:5]
 
     def compute_system_summary(self, cluster_summaries, clusters):
-        SystemSummary(
-            utilization=self.get_system_utilization(cluster_summaries),
-            hosts_count=self.get_system_host_status_wise_counts(
-                cluster_summaries
-            ),
-            cluster_count=self.get_clusters_status_wise_counts(clusters),
-            sds_det={
-                'mon_counts': self.get_system_mon_status_wise_counts(
+        try:
+            SystemSummary(
+                utilization=self.get_system_utilization(cluster_summaries),
+                hosts_count=self.get_system_host_status_wise_counts(
                     cluster_summaries
                 ),
-                'osd_counts': self.get_system_osd_status_wise_counts(
-                    cluster_summaries
-                ),
-                'most_used_pools': self.get_system_max_used_pools(
-                    cluster_summaries
-                ),
-                'most_used_rbds': self.get_system_max_used_rbds(
-                    cluster_summaries
-                )
-            },
-            sds_type=self.name
-        ).save()
+                cluster_count=self.get_clusters_status_wise_counts(clusters),
+                sds_det={
+                    'mon_counts': self.get_system_mon_status_wise_counts(
+                        cluster_summaries
+                    ),
+                    'osd_counts': self.get_system_osd_status_wise_counts(
+                        cluster_summaries
+                    ),
+                    'most_used_pools': self.get_system_max_used_pools(
+                        cluster_summaries
+                    ),
+                    'most_used_rbds': self.get_system_max_used_rbds(
+                        cluster_summaries
+                    )
+                },
+                sds_type=self.name
+            ).save()
+        except Exception as ex:
+            LOG.error(
+                "Exception caught computing system summary.Error %s" % str(ex)
+            )

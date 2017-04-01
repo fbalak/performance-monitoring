@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import ast
 import importlib
 import inspect
 import logging
@@ -96,6 +97,7 @@ class SDSPlugin(object):
                             'used', 0
                         )
                 )
+                net_utilization['percent_used'] = 0
                 if net_utilization['total'] > 0:
                     net_utilization['percent_used'] = (
                         net_utilization['used'] * 100
@@ -142,13 +144,20 @@ class SDSPlugin(object):
         system_services_count = {}
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
+                services_count = cluster_summary.sds_det.get('services_count')
+                if isinstance(services_count, basestring):
+                    services_count = ast.literal_eval(
+                        services_count.encode('ascii', 'ignore')
+                    )
                 for service_name, service_status_counter in \
-                        cluster_summary.get('services_count').iteritems():
+                        services_count.iteritems():
                     service_counter = {}
                     for service_status, counter in \
                             service_status_counter.iteritems():
                         service_counter[service_status] = \
-                            service_counter.get(service_status, 0) + counter
+                            service_counter.get(
+                                service_status, 0
+                        ) + int(counter)
                     system_services_count[service_name] = service_counter
         return system_services_count
 

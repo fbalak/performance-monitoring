@@ -1,10 +1,10 @@
 from etcd import EtcdKeyNotFound
 import logging
 import multiprocessing
-from tendrl.commons.utils.etcd_util import read as etcd_read
 from tendrl.performance_monitoring.objects.cluster_summary \
     import ClusterSummary
 from tendrl.performance_monitoring.sds import SDSMonitoringManager
+from tendrl.performance_monitoring.utils import read as etcd_read
 import time
 
 LOG = logging.getLogger(__name__)
@@ -45,9 +45,14 @@ class ClusterSummarise(multiprocessing.Process):
 
     def cluster_nodes_summary(self, node_ids):
         node_summaries = []
-        for node_id in node_ids:
-            node_summary = etcd_read('/monitoring/summary/nodes/%s' % node_id)
-            node_summaries.append(node_summary)
+        try:
+            for node_id in node_ids:
+                node_summary = etcd_read(
+                    '/monitoring/summary/nodes/%s' % node_id
+                )
+                node_summaries.append(node_summary)
+        except EtcdKeyNotFound:
+            return node_summaries
         return node_summaries
 
     def parse_cluster(self, cluster_id, cluster_det):

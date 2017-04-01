@@ -94,6 +94,7 @@ class GlusterFSPlugin(SDSPlugin):
         ret_val['most_used_volumes'] = self.get_most_used_volumes(
             cluster_det.get('Volumes', {})
         )
+        return ret_val
 
     def get_system_volume_status_wise_counts(self, cluster_summaries):
         volume_status_wise_counts = {}
@@ -106,9 +107,9 @@ class GlusterFSPlugin(SDSPlugin):
                     cluster_volume_count = ast.literal_eval(
                         cluster_volume_count.encode('ascii', 'replace')
                     )
-                for status, count in cluster_volume_count:
+                for status, count in cluster_volume_count.iteritems():
                     volume_status_wise_counts[status] = \
-                        volume_status_wise_counts.get(status, 0) + 1
+                        volume_status_wise_counts.get(status, 0) + int(count)
         return volume_status_wise_counts
 
     def get_system_max_used_volumes(self, cluster_summaries):
@@ -117,35 +118,44 @@ class GlusterFSPlugin(SDSPlugin):
             if self.name in cluster_summary.sds_type:
                 cluster_most_used_volumes = \
                     cluster_summary.sds_det.get('most_used_volumes', {})
-                if isinstance(cluster_most_used_volumes, unicode):
+                if isinstance(cluster_most_used_volumes, basestring):
                     cluster_most_used_volumes = ast.literal_eval(
                         cluster_most_used_volumes.encode(
-                            'ascii', 'replace'
+                            'ascii', 'ignore'
                         )
                     )
-                most_used_volumes.append(cluster_most_used_volumes)
+                for volume in cluster_most_used_volumes:
+                    if isinstance(volume, unicode):
+                        volume = volume.encode('ascii', 'ignore')
+                        volume = ast.literal_eval(volume)
+                    most_used_volumes.append(volume)
         most_used_volumes = \
-            sorted(most_used_volumes, key=lambda k: k['percent_used'])
+            sorted(most_used_volumes, key=lambda k: k['pcnt_used'])
         most_used_volumes.reverse()
         return most_used_volumes[:5]
 
     def compute_system_summary(self, cluster_summaries, clusters):
-        SystemSummary(
-            utilization=self.get_system_utilization(cluster_summaries),
-            hosts_count=self.get_system_host_status_wise_counts(
-                cluster_summaries
-            ),
-            cluster_count=self.get_clusters_status_wise_counts(clusters),
-            sds_det={
-                'volume_counts': self.get_system_volume_status_wise_counts(
+        try:
+            SystemSummary(
+                utilization=self.get_system_utilization(cluster_summaries),
+                hosts_count=self.get_system_host_status_wise_counts(
                     cluster_summaries
                 ),
-                'most_used_volumes': self.get_system_max_used_volumes(
-                    cluster_summaries
-                ),
-                'services_count': self.get_system_services_count(
-                    cluster_summaries
-                )
-            },
-            sds_type=self.name
-        ).save()
+                cluster_count=self.get_clusters_status_wise_counts(clusters),
+                sds_det={
+                    'volume_counts': self.get_system_volume_status_wise_counts(
+                        cluster_summaries
+                    ),
+                    'most_used_volumes': self.get_system_max_used_volumes(
+                        cluster_summaries
+                    ),
+                    'services_count': self.get_system_services_count(
+                        cluster_summaries
+                    )
+                },
+                sds_type=self.name
+            ).save()
+        except Exception as ex:
+            LOG.error(
+                "Exception caught computing system summary.Error %s" % str(ex)
+            )

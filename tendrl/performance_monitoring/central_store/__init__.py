@@ -4,7 +4,6 @@ from etcd import EtcdKeyNotFound
 import logging
 from ruamel import yaml
 from tendrl.commons import central_store
-from tendrl.commons.utils.etcd_util import read as etcd_read
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.cluster_summary \
@@ -13,6 +12,7 @@ from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
+from tendrl.performance_monitoring.utils import read as etcd_read
 
 
 LOG = logging.getLogger(__name__)
