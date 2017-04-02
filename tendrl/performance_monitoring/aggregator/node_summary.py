@@ -187,16 +187,22 @@ class NodeSummarise(multiprocessing.Process):
             memory_usage = old_summary.memory_usage
         if storage_usage is None:
             storage_usage = old_summary.storage_usage
-        NS.summary = \
-            NS.performance_monitoring.objects.\
-            NodeSummary(
-                node,
-                cpu_usage,
-                memory_usage,
-                storage_usage,
-                alert_count
+        summary = NodeSummary(
+            node,
+            cpu_usage,
+            memory_usage,
+            storage_usage,
+            alert_count
+        )
+        try:
+            summary.save()
+        except Exception as ex:
+            LOG.error(
+                'Exception %s caught while trying to save %s' % (
+                    str(ex),
+                    str(summary.__dict__)
+                )
             )
-        NS.summary.save()
 
     def calculate_host_summaries(self):
         nodes = NS.central_store_thread.get_node_ids()

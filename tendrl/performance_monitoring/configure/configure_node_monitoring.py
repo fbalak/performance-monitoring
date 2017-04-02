@@ -1,3 +1,4 @@
+import ast
 from etcd import EtcdConnectionFailed
 import gevent.event
 import gevent.greenlet
@@ -65,8 +66,14 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                 }
             }
         )
-        for plugin, plugin_config in \
-                GetMonitoringDefaults().getDefaults()['thresholds']['node'].iteritems():
+        config = NS.performance_monitoring.config.data['thresholds']
+        if isinstance(config, basestring):
+            config = ast.literal_eval(config.encode('ascii', 'ignore'))
+        for plugin, plugin_config in config['node'].iteritems():
+            if isinstance(plugin_config, basestring):
+                plugin_config = ast.literal_eval(
+                    plugin_config.encode('ascii', 'ignore')
+                )
             gevent.sleep(0.1)
             initiate_config_generation(
                 {
