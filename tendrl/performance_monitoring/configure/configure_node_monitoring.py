@@ -6,9 +6,6 @@ import gevent.greenlet
 from tendrl.commons import etcdobj
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
-
-from tendrl.performance_monitoring.defaults.default_values\
-    import GetMonitoringDefaults
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.utils import initiate_config_generation
@@ -28,8 +25,10 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                         node_det['node_id']
                     )
             etcd_kwargs = {
-                'port': int(NS.performance_monitoring.config.data['etcd_port']),
-                'host': NS.performance_monitoring.config.data["etcd_connection"]
+                'port': int(
+                    NS.performance_monitoring.config.data['etcd_port']),
+                'host': NS.performance_monitoring.config.data[
+                    "etcd_connection"]
             }
             self.etcd_orm = etcdobj.Server(etcd_kwargs=etcd_kwargs)
         except TendrlPerformanceMonitoringException as ex:
@@ -55,8 +54,10 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                 'fqdn': node_det['fqdn'],
                 'plugin': 'collectd',
                 'plugin_conf': {
-                    'master_name': NS.performance_monitoring.config.data['master_name'],
-                    'interval': NS.performance_monitoring.config.data['interval']
+                    'master_name': NS.performance_monitoring.config.data[
+                        'master_name'],
+                    'interval': NS.performance_monitoring.config.data[
+                        'interval']
                 }
             }
         )
@@ -67,8 +68,10 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                 'fqdn': node_det['fqdn'],
                 'plugin': 'dbpush',
                 'plugin_conf': {
-                    'master_name': NS.performance_monitoring.config.data['master_name'],
-                    'interval': NS.performance_monitoring.config.data['interval']
+                    'master_name': NS.performance_monitoring.config.data[
+                        'master_name'],
+                    'interval': NS.performance_monitoring.config.data[
+                        'interval']
                 }
             }
         )

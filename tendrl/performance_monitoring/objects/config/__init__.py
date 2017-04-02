@@ -1,6 +1,7 @@
 import socket
-from tendrl.commons.etcdobj import EtcdObj
+
 from tendrl.commons import config as cmn_config
+from tendrl.commons.etcdobj import EtcdObj
 from tendrl.commons.objects import BaseObject
 from tendrl.performance_monitoring.defaults.default_values\
     import GetMonitoringDefaults
@@ -18,7 +19,8 @@ class Config(BaseObject):
         if config is None:
             config = cmn_config.load_config(
                 'performance_monitoring',
-                "/etc/tendrl/performance-monitoring/performance-monitoring.conf.yaml"
+                "/etc/tendrl/performance-monitoring/performance-monitoring."
+                "conf.yaml"
             )
             config.update(
                 GetMonitoringDefaults().getDefaults()

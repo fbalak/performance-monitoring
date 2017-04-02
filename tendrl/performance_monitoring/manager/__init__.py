@@ -8,7 +8,8 @@ import os
 import signal
 from tendrl.commons.config import ConfigNotFound
 from tendrl.commons.event import Event
-from tendrl.commons.message import ExceptionMessage, Message
+from tendrl.commons.message import ExceptionMessage
+from tendrl.commons.message import Message
 from tendrl.commons import TendrlNS
 from tendrl.performance_monitoring import PerformanceMonitoringNS
 from tendrl.performance_monitoring.aggregator.cluster_summary \
@@ -18,12 +19,12 @@ from tendrl.performance_monitoring.central_store \
     import PerformanceMonitoringEtcdCentralStore
 from tendrl.performance_monitoring.configure.configure_cluster_monitoring\
     import ConfigureClusterMonitoring
+from tendrl.performance_monitoring.configure.configure_node_monitoring \
+    import ConfigureNodeMonitoring
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBManager
-from tendrl.performance_monitoring.configure.configure_node_monitoring \
-    import ConfigureNodeMonitoring
 
 app = Flask(__name__)
 

@@ -4,7 +4,6 @@ import urllib3
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
-
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.time_series_db.manager \

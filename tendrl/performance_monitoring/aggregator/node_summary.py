@@ -214,10 +214,14 @@ class NodeSummarise(multiprocessing.Process):
         try:
             summary.save()
         except Exception as ex:
-            LOG.error(
-                'Exception %s caught while trying to save %s' % (
-                    str(ex),
-                    str(summary.__dict__)
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Exception caught while trying to '
+                                        'save %s' % str(summary.__dict__),
+                             "exception": ex
+                             }
                 )
             )
 

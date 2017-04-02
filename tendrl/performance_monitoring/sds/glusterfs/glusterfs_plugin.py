@@ -1,12 +1,11 @@
 import ast
+
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
 from tendrl.performance_monitoring.utils import read as etcd_read_key
-import logging
-
-
-LOG = logging.getLogger(__name__)
 
 
 class GlusterFSPlugin(SDSPlugin):
@@ -158,6 +157,13 @@ class GlusterFSPlugin(SDSPlugin):
                 sds_type=self.name
             ).save(update=False)
         except Exception as ex:
-            LOG.error(
-                "Exception caught computing system summary.Error %s" % str(ex)
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": "Exception caught computing system "
+                                        "summary.",
+                             "exception": ex
+                             }
+                )
             )

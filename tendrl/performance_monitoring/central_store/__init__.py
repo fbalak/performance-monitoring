@@ -4,16 +4,14 @@ from etcd import EtcdKeyNotFound
 from ruamel import yaml
 
 from tendrl.commons import central_store
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
-from tendrl.performance_monitoring.objects.system_summary \
-    import SystemSummary
 from tendrl.performance_monitoring.utils import read as etcd_read
 
-
-LOG = logging.getLogger(__name__)
 
 class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def __init__(self):
