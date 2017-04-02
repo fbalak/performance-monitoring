@@ -1,8 +1,8 @@
 import ast
-from tendrl.commons.utils.etcd_util import read as etcd_read_key
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
+from tendrl.performance_monitoring.utils import read as etcd_read_key
 import logging
 
 
@@ -36,12 +36,16 @@ class CephPlugin(SDSPlugin):
                 )
             )
             if 'mon' in sds_node_context['tags']:
-                for plugin, plugin_config in \
-                        NS.performance_monitoring.config.data[
-                            'thresholds'
-                        ][
-                            self.name
-                        ].iteritems():
+                config = NS.performance_monitoring.config.data['thresholds']
+                if isinstance(config, basestring):
+                    config = ast.literal_eval(
+                        config.encode('ascii', 'ignore')
+                    )
+                for plugin, plugin_config in config[self.name].iteritems():
+                    if isinstance(plugin_config, basestring):
+                        plugin_config = ast.literal_eval(
+                            plugin_config.encode('ascii', 'ignore')
+                        )
                     is_configured = True
                     if node_id not in self.configured_nodes:
                         self.configured_nodes[node_id] = [plugin]
@@ -255,7 +259,7 @@ class CephPlugin(SDSPlugin):
                     )
                 },
                 sds_type=self.name
-            ).save()
+            ).save(update=False)
         except Exception as ex:
             LOG.error(
                 "Exception caught computing system summary.Error %s" % str(ex)

@@ -4,8 +4,8 @@ import importlib
 import inspect
 import logging
 import os
-from tendrl.commons.utils.etcd_util import read as etcd_read_key
 from tendrl.performance_monitoring.utils import list_modules_in_package_path
+from tendrl.performance_monitoring.utils import read as etcd_read_key
 import six
 
 

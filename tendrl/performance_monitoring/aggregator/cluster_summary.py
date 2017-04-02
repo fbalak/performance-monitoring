@@ -95,7 +95,7 @@ class ClusterSummarise(multiprocessing.Process):
                 clusters = etcd_read('/clusters')
                 for clusterid, cluster_det in clusters.iteritems():
                     cluster_summary = self.parse_cluster(clusterid, cluster_det)
-                    cluster_summary.save()
+                    cluster_summary.save(update=False)
                     cluster_summaries.append(cluster_summary)
                 self.sds_monitoring_manager.compute_system_summary(
                     cluster_summaries,
