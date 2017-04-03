@@ -1,13 +1,12 @@
-from etcd import EtcdKeyNotFound
-import logging
 import multiprocessing
+import time
+
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.objects.cluster_summary \
     import ClusterSummary
 from tendrl.performance_monitoring.sds import SDSMonitoringManager
 from tendrl.performance_monitoring.utils import read as etcd_read
-import time
-
-LOG = logging.getLogger(__name__)
 
 
 class ClusterSummarise(multiprocessing.Process):
@@ -94,7 +93,8 @@ class ClusterSummarise(multiprocessing.Process):
             try:
                 clusters = etcd_read('/clusters')
                 for clusterid, cluster_det in clusters.iteritems():
-                    cluster_summary = self.parse_cluster(clusterid, cluster_det)
+                    cluster_summary = self.parse_cluster(clusterid,
+                                                         cluster_det)
                     cluster_summary.save(update=False)
                     cluster_summaries.append(cluster_summary)
                 self.sds_monitoring_manager.compute_system_summary(
@@ -102,9 +102,15 @@ class ClusterSummarise(multiprocessing.Process):
                     clusters
                 )
             except Exception as ex:
-                LOG.error(
-                    'Error caught computing summary. Error %s' % str(ex),
-                    exc_info=True
+                Event(
+                    ExceptionMessage(
+                        priority="error",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Error caught computing summary.',
+                            "exception": ex
+                            }
+                    )
                 )
             time.sleep(60)
 

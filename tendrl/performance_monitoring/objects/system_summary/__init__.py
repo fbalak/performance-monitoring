@@ -1,9 +1,5 @@
-import logging
 from tendrl.commons.etcdobj import EtcdObj
 from tendrl.commons.objects import BaseObject
-
-
-LOG = logging.getLogger(__name__)
 
 
 class SystemSummary(BaseObject):

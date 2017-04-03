@@ -1,13 +1,10 @@
 from etcd import EtcdKeyNotFound
 import gevent
-import logging
 import multiprocessing
-from tendrl.performance_monitoring.sds import SDSMonitoringManager
-from tendrl.performance_monitoring.utils import initiate_config_generation
 import time
 
-
-LOG = logging.getLogger(__name__)
+from tendrl.performance_monitoring.sds import SDSMonitoringManager
+from tendrl.performance_monitoring.utils import initiate_config_generation
 
 
 class ConfigureClusterMonitoring(multiprocessing.Process):

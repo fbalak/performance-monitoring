@@ -1,9 +1,8 @@
-import logging
 from ruamel import yaml
 import socket
 
-
-LOG = logging.getLogger(__name__)
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 
 DEFAULT_PATH = '/etc/tendrl/performance-monitoring/monitoring_defaults.yaml'
 
@@ -27,5 +26,13 @@ class GetMonitoringDefaults(object):
             self.defaults = config
             self.defaults['master_name'] = socket.getfqdn()
         except (IOError, yaml.YAMLError, AttributeError) as ex:
-            LOG.info('Fetching defaults failed from path %s. Error %s'
-                     % (self.defaults_path, ex))
+            Event(
+                ExceptionMessage(
+                    priority="info",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Fetching defaults failed from path '
+                                        '%s.' % self.defaults_path,
+                             "exception": ex
+                             }
+                )
+            )

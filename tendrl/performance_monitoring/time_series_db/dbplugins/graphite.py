@@ -1,21 +1,22 @@
 import ast
-import logging
+import time
+import urllib3
+
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBPlugin
-import time
-import urllib3
-
-
-LOG = logging.getLogger(__name__)
 
 
 class GraphitePlugin(TimeSeriesDBPlugin):
 
     def intialize(self):
-        self.host = NS.performance_monitoring.config.data['time_series_db_server']
-        self.port = NS.performance_monitoring.config.data['time_series_db_port']
+        self.host = NS.performance_monitoring.config.data[
+            'time_series_db_server']
+        self.port = NS.performance_monitoring.config.data[
+            'time_series_db_port']
         self.http = urllib3.PoolManager()
         self.prefix = 'collectd'
 
@@ -37,8 +38,17 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                     )
                 )
         except (ValueError, Exception) as ex:
-            LOG.error('Failed to fetch stats for metric %s of %s using url %s.Error %s ' % (
-                metric_name, entity_name, url, str(ex)), exc_info=True)
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to fetch stats for metric %s'
+                                        ' of %s using url. %s' %
+                                        (metric_name, entity_name, url),
+                             "exception": ex
+                             }
+                )
+            )
             raise TendrlPerformanceMonitoringException(str(ex))
 
     def get_metrics(self, entity_name):
@@ -61,8 +71,16 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                     result.append(split_metrics[1])
             return str(result)
         except (ValueError, Exception) as ex:
-            LOG.error('Failed to get metrics for %s.Error %s ' %
-                      (entity_name, ex), exc_info=True)
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to get metrics for %s.' %
+                                        entity_name,
+                             "exception": ex
+                             }
+                )
+            )
 
     def destroy(self):
         pass

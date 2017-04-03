@@ -1,8 +1,8 @@
 import pkg_resources
 from ruamel import yaml
-from tendrl.commons import objects
-from tendrl.commons import etcdobj
 
+from tendrl.commons import etcdobj
+from tendrl.commons import objects
 
 # Definitions need there own special init and have to be present in the NS
 # before anything else, Hence subclassing BaseObject
