@@ -1,12 +1,11 @@
 import ast
-from tendrl.commons.utils.etcd_util import read as etcd_read_key
+
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
-import logging
-
-
-LOG = logging.getLogger(__name__)
+from tendrl.performance_monitoring.utils import read as etcd_read_key
 
 
 class CephPlugin(SDSPlugin):
@@ -36,12 +35,16 @@ class CephPlugin(SDSPlugin):
                 )
             )
             if 'mon' in sds_node_context['tags']:
-                for plugin, plugin_config in \
-                        NS.performance_monitoring.config.data[
-                            'thresholds'
-                        ][
-                            self.name
-                        ].iteritems():
+                config = NS.performance_monitoring.config.data['thresholds']
+                if isinstance(config, basestring):
+                    config = ast.literal_eval(
+                        config.encode('ascii', 'ignore')
+                    )
+                for plugin, plugin_config in config[self.name].iteritems():
+                    if isinstance(plugin_config, basestring):
+                        plugin_config = ast.literal_eval(
+                            plugin_config.encode('ascii', 'ignore')
+                        )
                     is_configured = True
                     if node_id not in self.configured_nodes:
                         self.configured_nodes[node_id] = [plugin]
@@ -81,9 +84,9 @@ class CephPlugin(SDSPlugin):
                 rbd_det['percent_used'] = 0
                 if rbd_det['provisioned'] != 0:
                     rbd_det['percent_used'] = (
-                        rbd_det['used'] * 100 * 1.0
+                        int(rbd_det['used']) * 100 * 1.0
                     ) / (
-                        rbd_det['provisioned'] * 1.0
+                        int(rbd_det['provisioned']) * 1.0
                     )
                 rbds.append(rbd_det)
         most_used_rbds = sorted(rbds, key=lambda k: k['percent_used'])
@@ -172,7 +175,7 @@ class CephPlugin(SDSPlugin):
                     )
                 for status, count in cluster_mon_count.iteritems():
                     mon_status_wise_counts[status] = \
-                        mon_status_wise_counts.get(status, 0) + 1
+                        mon_status_wise_counts.get(status, 0) + int(count)
         return mon_status_wise_counts
 
     def get_system_osd_status_wise_counts(self, cluster_summaries):
@@ -200,7 +203,9 @@ class CephPlugin(SDSPlugin):
                 cluster_most_used_pools = \
                     cluster_summary.sds_det.get('most_used_pools', {})
                 if isinstance(cluster_most_used_pools, basestring):
-                    cluster_most_used_pools = ast.literal_eval(cluster_most_used_pools.encode('ascii', 'ignore'))
+                    cluster_most_used_pools = ast.literal_eval(
+                        cluster_most_used_pools.encode('ascii', 'ignore')
+                    )
                 for pool in cluster_most_used_pools:
                     if isinstance(pool, unicode):
                         pool = pool.encode('ascii', 'ignore')
@@ -231,25 +236,37 @@ class CephPlugin(SDSPlugin):
         return most_used_rbds[:5]
 
     def compute_system_summary(self, cluster_summaries, clusters):
-        SystemSummary(
-            utilization=self.get_system_utilization(cluster_summaries),
-            hosts_count=self.get_system_host_status_wise_counts(
-                cluster_summaries
-            ),
-            cluster_count=self.get_clusters_status_wise_counts(clusters),
-            sds_det={
-                'mon_counts': self.get_system_mon_status_wise_counts(
+        try:
+            SystemSummary(
+                utilization=self.get_system_utilization(cluster_summaries),
+                hosts_count=self.get_system_host_status_wise_counts(
                     cluster_summaries
                 ),
-                'osd_counts': self.get_system_osd_status_wise_counts(
-                    cluster_summaries
-                ),
-                'most_used_pools': self.get_system_max_used_pools(
-                    cluster_summaries
-                ),
-                'most_used_rbds': self.get_system_max_used_rbds(
-                    cluster_summaries
+                cluster_count=self.get_clusters_status_wise_counts(clusters),
+                sds_det={
+                    'mon_counts': self.get_system_mon_status_wise_counts(
+                        cluster_summaries
+                    ),
+                    'osd_counts': self.get_system_osd_status_wise_counts(
+                        cluster_summaries
+                    ),
+                    'most_used_pools': self.get_system_max_used_pools(
+                        cluster_summaries
+                    ),
+                    'most_used_rbds': self.get_system_max_used_rbds(
+                        cluster_summaries
+                    )
+                },
+                sds_type=self.name
+            ).save(update=False)
+        except Exception as ex:
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": "Exception caught computing system "
+                                        "summary.",
+                             "exception": ex
+                             }
                 )
-            },
-            sds_type=self.name
-        ).save()
+            )

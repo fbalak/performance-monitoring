@@ -1,14 +1,15 @@
 from abc import abstractmethod
+import ast
 import importlib
 import inspect
-import logging
 import os
-from tendrl.commons.utils.etcd_util import read as etcd_read_key
-from tendrl.performance_monitoring.utils import list_modules_in_package_path
 import six
 
-
-LOG = logging.getLogger(__name__)
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
+from tendrl.commons.message import Message
+from tendrl.performance_monitoring.utils import list_modules_in_package_path
+from tendrl.performance_monitoring.utils import read as etcd_read_key
 
 
 class NoSDSPluginException(Exception):
@@ -96,6 +97,7 @@ class SDSPlugin(object):
                             'used', 0
                         )
                 )
+                net_utilization['percent_used'] = 0
                 if net_utilization['total'] > 0:
                     net_utilization['percent_used'] = (
                         net_utilization['used'] * 100
@@ -142,13 +144,20 @@ class SDSPlugin(object):
         system_services_count = {}
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
+                services_count = cluster_summary.sds_det.get('services_count')
+                if isinstance(services_count, basestring):
+                    services_count = ast.literal_eval(
+                        services_count.encode('ascii', 'ignore')
+                    )
                 for service_name, service_status_counter in \
-                        cluster_summary.get('services_count').iteritems():
+                        services_count.iteritems():
                     service_counter = {}
                     for service_status, counter in \
                             service_status_counter.iteritems():
                         service_counter[service_status] = \
-                            service_counter.get(service_status, 0) + counter
+                            service_counter.get(
+                                service_status, 0
+                        ) + int(counter)
                     system_services_count[service_name] = service_counter
         return system_services_count
 
@@ -186,21 +195,29 @@ class SDSMonitoringManager(object):
                 'clusters/%s/TendrlContext' % integration_id
             )
         except Exception as ex:
-            LOG.error(
-                'Failed to configure monitoring for cluster %s as tendrl'
-                ' context could not be fetched. Error %s' % (
-                    integration_id,
-                    str(ex)
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to configure monitoring for '
+                                        'cluster %s as tendrl context could '
+                                        'not be fetched.' % integration_id,
+                             "exception": ex
+                             }
                 )
             )
             return
         for plugin in SDSPlugin.plugins:
             if plugin.name == sds_tendrl_context['sds_name']:
                 return plugin.configure_monitoring(sds_tendrl_context)
-        LOG.error(
-            'No plugin defined for %s. Hence cannot configure it' % (
-                sds_tendrl_context['sds_name']
-            ),
-            exc_info=True
+        Event(
+            Message(
+                priority="error",
+                publisher=NS.publisher_id,
+                payload={"message": 'No plugin defined for %s. Hence cannot '
+                                    'configure it' %
+                                    sds_tendrl_context['sds_name']
+                         }
+            )
         )
         return None

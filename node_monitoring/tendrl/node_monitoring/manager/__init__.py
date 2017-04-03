@@ -1,15 +1,11 @@
 import gevent.event
 import gevent.greenlet
-import logging
 import signal
 from tendrl.commons import manager as commons_manager
 from tendrl.commons import TendrlNS
 from tendrl.node_monitoring.central_store \
     import NodeMonitoringEtcdCentralStore
 from tendrl.node_monitoring import NodeMonitoringNS
-
-
-LOG = logging.getLogger(__name__)
 
 
 class NodeMonitoringManager(commons_manager.Manager):
@@ -39,7 +35,13 @@ def main():
     manager.start()
 
     def shutdown():
-        LOG.info("Signal handler: stopping")
+        Event(
+            Message(
+                priority="info",
+                publisher=NS.publisher_id,
+                payload={"message": "Signal handler: stopping"}
+            )
+        )
         complete.set()
 
     gevent.signal(signal.SIGTERM, shutdown)

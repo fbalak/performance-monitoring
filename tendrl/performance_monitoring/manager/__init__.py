@@ -3,11 +3,13 @@ from flask import Flask
 from flask import request
 from flask import Response
 import json
-import logging
 import multiprocessing
 import os
 import signal
 from tendrl.commons.config import ConfigNotFound
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
+from tendrl.commons.message import Message
 from tendrl.commons import TendrlNS
 from tendrl.performance_monitoring import PerformanceMonitoringNS
 from tendrl.performance_monitoring.aggregator.cluster_summary \
@@ -17,15 +19,14 @@ from tendrl.performance_monitoring.central_store \
     import PerformanceMonitoringEtcdCentralStore
 from tendrl.performance_monitoring.configure.configure_cluster_monitoring\
     import ConfigureClusterMonitoring
+from tendrl.performance_monitoring.configure.configure_node_monitoring \
+    import ConfigureNodeMonitoring
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBManager
-from tendrl.performance_monitoring.configure.configure_node_monitoring \
-    import ConfigureNodeMonitoring
 
 app = Flask(__name__)
-LOG = logging.getLogger(__name__)
 
 
 @app.route("/monitoring/nodes/<node_id>/<resource_name>/stats")
@@ -192,10 +193,16 @@ class TendrlPerformanceManager(object):
         try:
             app.run(host=self.api_server, port=self.api_port, threaded=True)
         except (ValueError, TendrlPerformanceMonitoringException) as ex:
-            LOG.error(
-                'Failed to start the api server. Error %s' % ex,
-                exc_info=True
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to start the api server.',
+                             "exception": ex
+                             }
+                )
             )
+
             self.stop()
 
     def stop(self):
@@ -209,16 +216,22 @@ class TendrlPerformanceManager(object):
 def main():
     PerformanceMonitoringNS()
     TendrlNS()
+    NS.publisher_id = "performance_monitoring"
     NS.central_store_thread = PerformanceMonitoringEtcdCentralStore()
     NS.time_series_db_manager = TimeSeriesDBManager()
     NS.performance_monitoring.definitions.save()
     NS.performance_monitoring.config.save()
-    NS.publisher_id = "performance_monitoring"
 
     tendrl_perf_manager = TendrlPerformanceManager()
 
     def terminate(sig, frame):
-        LOG.error("Signal handler: stopping", exc_info=True)
+        Event(
+            Message(
+                priority="error",
+                publisher=NS.publisher_id,
+                payload={"message": "Signal handler: stopping"}
+            )
+        )
         tendrl_perf_manager.stop()
 
     signal.signal(signal.SIGINT, terminate)

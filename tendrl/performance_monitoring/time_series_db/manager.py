@@ -1,13 +1,12 @@
 from abc import abstractmethod
 import importlib
 import inspect
-import logging
 import os
 import re
 import six
 
-
-LOG = logging.getLogger(__name__)
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 
 
 class FailedToFetchTimeSeriesData(Exception):
@@ -59,7 +58,8 @@ class TimeSeriesDBManager(object):
         # match the constructor and hence the 2nd arguement is made to appear
         # as an optional arguement although it is enforced internally not be
         # optional due to reason stated above.
-        self.time_series_db = NS.performance_monitoring.config.data['time_series_db']
+        self.time_series_db = NS.performance_monitoring.config.data[
+            'time_series_db']
         try:
             self.load_plugins()
         except (SyntaxError, ValueError, ImportError) as ex:
@@ -79,8 +79,16 @@ class TimeSeriesDBManager(object):
                 for name, cls in clsmembers:
                     exec("from %s import %s" % (plugin_name, name))
         except (SyntaxError, ValueError, ImportError) as ex:
-            LOG.error('Failed to load the time series db plugins. Error %s' %
-                      ex, exc_info=True)
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Failed to load the time series db '
+                                        'plugins.',
+                             "exception": ex
+                             }
+                )
+            )
             raise ex
 
     def get_plugin(self):

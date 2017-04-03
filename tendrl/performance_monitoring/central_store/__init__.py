@@ -1,21 +1,16 @@
 from etcd import EtcdConnectionFailed
 from etcd import EtcdException
 from etcd import EtcdKeyNotFound
-import logging
 from ruamel import yaml
+
 from tendrl.commons import central_store
-from tendrl.commons.utils.etcd_util import read as etcd_read
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
-from tendrl.performance_monitoring.objects.cluster_summary \
-    import ClusterSummary
 from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
-from tendrl.performance_monitoring.objects.system_summary \
-    import SystemSummary
-
-
-LOG = logging.getLogger(__name__)
+from tendrl.performance_monitoring.utils import read as etcd_read
 
 
 class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
@@ -42,8 +37,16 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             return yaml.safe_load(configs)
         except (EtcdKeyNotFound, EtcdConnectionFailed, ValueError,
                 SyntaxError, EtcdException) as ex:
-            LOG.error('Fetching monitoring configurations failed. Error %s' %
-                      ex)
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": 'Fetching monitoring configurations '
+                                        'failed.',
+                             "exception": ex
+                             }
+                )
+            )
             raise TendrlPerformanceMonitoringException(str(ex))
 
     def get_node_name_from_id(self, node_id):

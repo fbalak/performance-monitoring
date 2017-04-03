@@ -1,8 +1,4 @@
-import logging
 from tendrl.commons import central_store
-
-
-LOG = logging.getLogger(__name__)
 
 
 class NodeMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
