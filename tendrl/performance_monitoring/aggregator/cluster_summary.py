@@ -1,6 +1,6 @@
+from etcd import EtcdKeyNotFound
 import multiprocessing
 import time
-
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.objects.cluster_summary \
