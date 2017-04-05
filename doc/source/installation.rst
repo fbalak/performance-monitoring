@@ -1,78 +1,46 @@
-===========
-Environment
-===========
-
-1. Install Etcd>=2.3.x && <3.x (https://github.com/coreos/etcd/releases/tag/v2.3.7)
-
-
 ============
 Installation
 ============
 
-Since there is no stable release yet, the only option is to install the project
-from the source.
+Note: node-agent is required for logging(functional dependency)
 
-Development version from the source
------------------------------------
+1. Install performance-monitoring::
 
-1. Install http://github.com/tendrl/commons from the source code::
+   yum install tendrl-performance-monitoring
 
-    Please find commons installation steps at: https://github.com/Tendrl/commons/blob/master/doc/source/installation.rst
+2. Configure performance-monitoring::
 
-2. Install performance monitoring itself::
+    Open /etc/tendrl/performance-monitoring/performance-monitoring.conf.yaml
+   
+    update -->
 
-    $ git clone https://github.com/Tendrl/performance-monitoring.git
-    $ cd performance-monitoring
-    $ mkvirtualenv performance-monitoring
-    $ pip install .
+    etcd_connection = <IP of etcd server>
 
-Note that we use virtualenvwrapper_ here to activate ``performance-monitoring`` `python
-virtual enviroment`_. This way, we install *performance monitoring* into the same virtual
-enviroment which we have created during installation of *integration common*.
+    time_series_db_server = <IP of graphite server>
 
-.. _virtualenvwrapper: https://virtualenvwrapper.readthedocs.io/en/latest/
-.. _`python virtual enviroment`: https://virtualenv.pypa.io/en/stable/
+    api_server_addr = <IP of current node>
 
-3. Create the following directories::
-
-    $ mkdir /var/log/tendrl/performance-monitoring
-    $ mkdir $HOME/.tendrl/performance-monitoring/
-    $ mkdir -p /etc/tendrl/performance-monitoring/
-
-4. Create the following config files::
-
-    $ cp etc/tendrl/performance-monitoring/performance-monitoring.conf.yaml.sample /etc/tendrl/performance-monitoring/performance-monitoring.conf.yaml
-    $ cp etc/tendrl/performance-monitoring/logging.yaml.timedrotation.sample /etc/tendrl/performance-monitoring/performance-monitoring_logging.yaml
-    $ cp etc/tendrl/performance-monitoring/monitoring_defaults.yaml /etc/tendrl/performance-monitoring/monitoring_defaults.yaml
-    $ cp etc/tendrl/performance-monitoring/graphite-web.conf.sample /etc/httpd/conf.d/graphite-web.conf
-    $ cp etc/tendrl/performance-monitoring/carbon.conf.sample /etc/carbon/carbon.conf
-
-5. Edit ``/etc/tendrl/performance-monitoring/performance-monitoring.conf.yaml`` as below
-
-    Set the value of ``etcd_connection`` to the interface address on which etcd is accessible
-
-    Set the value of ``etcd_port`` to the port on which etcd is accessible
-
-    Set the value of ``time_series_db_server`` to the ip address of system on which time-series db(graphite) is installed
-
-    Set the value of ``time_series_db_port`` to the port on which time-series db rest apis are accessible(default for graphite as configured by tendrl is 10080)
-
-    Note: time_series_db_server and time_series_db_port are included in configuration because this provides an option for time-series db to not necessarily be co-resident with performance-monitoring. However, if its not co-resident with performance-monitoring, it needs to be configured manually.
-
-6. Init graphite-db using ::
+3. Initialize and start graphite services::
 
     /usr/lib/python2.7/site-packages/graphite/manage.py syncdb --noinput
-    
-7. Allow httpd access to graphite.db ::
 
     chown apache:apache /var/lib/graphite-web/graphite.db
 
-8. Start carbon-cache and httpd ::
+    systemctl enable carbon-cache
 
-    service carbon-cache start
-    service httpd restart
+    systemctl start carbon-cache
 
-9. Run::
+4. Restart httpd
 
-    $ tendrl-performance-monitoring
+    systemctl restart httpd
 
+5. Enable and start performance-monitoring service::
+
+   systemctl enable tendrl-performance-monitoring
+
+   systemctl start tendrl-performance-monitoring
+
+Note: 
+
+For more detailed steps please follow: 
+https://github.com/Tendrl/documentation/wiki/Tendrl-Package-Installation-Reference
