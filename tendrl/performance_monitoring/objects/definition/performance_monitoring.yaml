@@ -4,13 +4,13 @@ namespace.performance_monitoring:
     NodeSummary:
       attrs:
         node_id:
-          type: str
+          type: String
         cpu_usage:
-          type: dict
+          type: Dict
         memory_usage:
-          type: dict
+          type: Dict
         storage_usage:
-          type: dict
+          type: Dict
         alert_count:
           type: int
       enabled: true
@@ -20,17 +20,17 @@ namespace.performance_monitoring:
     ClusterSummary:
       attrs:
         utilization:
-          type: dict
+          type: Dict
         hosts_count:
-          type: dict
+          type: Dict
         node_summaries:
           type: List
         sds_det:
-          type: dict
+          type: Dict
         sds_type:
-          type: str
+          type: String
         cluster_id:
-          type: str
+          type: String
       enabled: true
       value: monitoring/summary/clusters/$ClusterSummary.cluster_id
       list: monitoring/summary/clusters
@@ -38,15 +38,15 @@ namespace.performance_monitoring:
     SystemSummary:
       attrs:
         utilization:
-          type: dict
+          type: Dict
         hosts_count:
-          type: dict
+          type: Dict
         sds_det:
-          type: dict
+          type: Dict
         sds_type:
-          type: str
+          type: String
         cluster_count:
-          type: dict
+          type: Dict
       enabled: true
       value: monitoring/summary/system/$SystemSummary.sds_type
       list: monitoring/summary/system
