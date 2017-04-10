@@ -1,4 +1,3 @@
-from etcd import EtcdKeyNotFound
 import gevent
 import multiprocessing
 import time
@@ -25,7 +24,7 @@ class ConfigureClusterMonitoring(multiprocessing.Process):
                     cluster_id = key_contents[2]
                     cluster_ids.append(cluster_id)
             return cluster_ids
-        except EtcdKeyNotFound:
+        except Exception:
             return cluster_ids
 
     def configure_cluster_monitoring(self):

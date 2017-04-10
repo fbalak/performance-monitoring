@@ -101,6 +101,8 @@ class ClusterSummarise(multiprocessing.Process):
                     cluster_summaries,
                     clusters
                 )
+            except EtcdKeyNotFound:
+                pass
             except Exception as ex:
                 Event(
                     ExceptionMessage(

@@ -212,7 +212,7 @@ class NodeSummarise(multiprocessing.Process):
             alert_count
         )
         try:
-            summary.save()
+            summary.save(update=False)
         except Exception as ex:
             Event(
                 ExceptionMessage(

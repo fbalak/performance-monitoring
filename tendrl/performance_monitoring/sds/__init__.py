@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import ast
+from etcd import EtcdKeyNotFound
 import importlib
 import inspect
 import os
@@ -194,6 +195,8 @@ class SDSMonitoringManager(object):
             sds_tendrl_context = etcd_read_key(
                 'clusters/%s/TendrlContext' % integration_id
             )
+        except EtcdKeyNotFound:
+            return None
         except Exception as ex:
             Event(
                 ExceptionMessage(
