@@ -1,9 +1,0 @@
----
-# Central store etcd port
-etcd_port: 2379
-# Central store etcd host/ip
-etcd_connection: 0.0.0.0
-log_cfg_path: /etc/tendrl/node-monitoring/node-monitoring_logging.yaml
-logging_socket_path: /var/run/tendrl/message.sock
-tags:
-- tendrl/node-monitoring
