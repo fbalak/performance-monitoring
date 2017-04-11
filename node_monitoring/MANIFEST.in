@@ -1,8 +1,0 @@
-include tendrl-node-monitoring.service
-include version.py
-exclude .gitignore
-exclude .gitreview
-graft docs
-graft etc
-graft tendrl
-global-exclude *.pyc
