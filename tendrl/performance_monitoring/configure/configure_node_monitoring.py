@@ -2,7 +2,6 @@ import ast
 from etcd import EtcdConnectionFailed
 import gevent.event
 import gevent.greenlet
-import time
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -99,7 +98,7 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
             while not self._complete.is_set():
                 gevent.sleep(0.1)
                 self.init_monitoring()
-                time.sleep(10)
+                gevent.sleep(10)
         except (EtcdConnectionFailed, Exception) as e:
             Event(
                 ExceptionMessage(

@@ -1,15 +1,13 @@
 import gevent
-import multiprocessing
-import time
 
 from tendrl.performance_monitoring.sds import SDSMonitoringManager
 from tendrl.performance_monitoring.utils import initiate_config_generation
 
 
-class ConfigureClusterMonitoring(multiprocessing.Process):
+class ConfigureClusterMonitoring(gevent.greenlet.Greenlet):
     def __init__(self):
         super(ConfigureClusterMonitoring, self).__init__()
-        self._complete = multiprocessing.Event()
+        self._complete = gevent.event.Event()
         self.sds_monitoring_manager = SDSMonitoringManager()
 
     def get_cluster_ids(self):
@@ -41,9 +39,9 @@ class ConfigureClusterMonitoring(multiprocessing.Process):
                             gevent.spawn(initiate_config_generation, config)
             except Exception:
                 pass
-            time.sleep(10)
+            gevent.sleep(10)
 
-    def run(self):
+    def _run(self):
         self.configure_cluster_monitoring()
 
     def stop(self):
