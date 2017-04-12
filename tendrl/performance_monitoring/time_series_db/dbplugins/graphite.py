@@ -1,5 +1,5 @@
 import ast
-import time
+import gevent
 import urllib3
 
 from tendrl.commons.event import Event
@@ -54,7 +54,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
     def get_metrics(self, entity_name):
         url = 'http://%s:%s/metrics/index.json' % (self.host, str(self.port))
         try:
-            time.sleep(5)
+            gevent.sleep(5)
             resp = self.http.request('GET', url, timeout=5)
             if resp.status != 200:
                 raise TendrlPerformanceMonitoringException(

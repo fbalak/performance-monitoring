@@ -186,6 +186,7 @@ class TendrlPerformanceManager(object):
             raise
 
     def start(self):
+        NS.central_store_thread.start()
         self.node_summariser.start()
         self.cluster_summariser.start()
         self.configure_cluster_monitoring.start()
@@ -206,6 +207,7 @@ class TendrlPerformanceManager(object):
             self.stop()
 
     def stop(self):
+        NS.central_store_thread.stop()
         self.configure_cluster_monitoring.stop()
         self.configure_node_monitoring.stop()
         NS.configurator_queue.close()

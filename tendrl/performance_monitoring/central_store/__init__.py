@@ -176,16 +176,15 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_nodes_details(self):
         nodes_dets = []
         try:
-            nodes = NS.etcd_orm.client.read('/nodes/', recursive=True)
+            nodes = NS.etcd_orm.client.read('/nodes/')
             for node in nodes.leaves:
                 if node.key.startswith('/nodes/'):
                     node_id = (
-                        node.key[len('/nodes/'):]
+                        node.key.split('/')[2]
                     ).encode('ascii', 'ignore')
                     fqdn = (
                         NS.etcd_orm.client.read(
-                            '/nodes/%s/NodeContext/fqdn' % (node.key),
-                            recursive=True
+                            '/nodes/%s/NodeContext/fqdn' % (node_id)
                         ).value
                     ).encode('ascii', 'ignore')
                     nodes_dets.append({'node_id': node_id, 'fqdn': fqdn})
@@ -200,14 +199,17 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def get_cluster_node_ids(self, cluster_id):
         cluster_nodes = []
-        nodes = NS.etcd_orm.client.read(
-            '/clusters/%s/nodes' % cluster_id
-        )
-        for node in nodes.leaves:
-            key_contents = node.key.split('/')
-            if len(key_contents) == 5:
-                cluster_nodes.append(key_contents[4])
-        return cluster_nodes
+        try:
+            nodes = NS.etcd_orm.client.read(
+                '/clusters/%s/nodes' % cluster_id
+            )
+            for node in nodes.leaves:
+                key_contents = node.key.split('/')
+                if len(key_contents) == 5:
+                    cluster_nodes.append(key_contents[4])
+            return cluster_nodes
+        except EtcdKeyNotFound:
+            return cluster_nodes
 
     def save_clustersummary(self, cluster_summary):
         NS.etcd_orm.save(cluster_summary)

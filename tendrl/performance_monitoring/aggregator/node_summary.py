@@ -3,9 +3,7 @@ from etcd import EtcdConnectionFailed
 from etcd import EtcdKeyNotFound
 import gevent
 import math
-import multiprocessing
 import re
-import time
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -16,10 +14,10 @@ from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
 
 
-class NodeSummarise(multiprocessing.Process):
+class NodeSummarise(gevent.greenlet.Greenlet):
     def __init__(self):
         super(NodeSummarise, self).__init__()
-        self._complete = multiprocessing.Event()
+        self._complete = gevent.event.Event()
 
     ''' Get latest stats of resource as in param resource'''
     def get_latest_stat(self, node, resource):
@@ -156,7 +154,7 @@ class NodeSummarise(multiprocessing.Process):
             return 0
 
     def calculate_host_summary(self, node):
-        gevent.sleep(1)
+        gevent.sleep(0.1)
         cpu_usage = self.get_net_host_cpu_utilization(node)
         memory_usage = self.get_net_host_memory_utilization(node)
         storage_usage = self.get_net_storage_utilization(node)
@@ -212,7 +210,7 @@ class NodeSummarise(multiprocessing.Process):
             alert_count
         )
         try:
-            summary.save()
+            summary.save(update=False)
         except Exception as ex:
             Event(
                 ExceptionMessage(
@@ -229,11 +227,12 @@ class NodeSummarise(multiprocessing.Process):
         nodes = NS.central_store_thread.get_node_ids()
         for node in nodes:
             gevent.spawn(self.calculate_host_summary, node)
+            gevent.sleep(0.1)
 
-    def run(self):
+    def _run(self):
         while not self._complete.is_set():
             self.calculate_host_summaries()
-            time.sleep(60)
+            gevent.sleep(60)
 
     def stop(self):
         self._complete.set()
