@@ -3,7 +3,6 @@ from etcd import EtcdConnectionFailed
 import gevent.event
 import gevent.greenlet
 
-from tendrl.commons import etcdobj
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.exceptions \
@@ -24,13 +23,6 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                     self.monitoring_config_init_nodes.append(
                         node_det['node_id']
                     )
-            etcd_kwargs = {
-                'port': int(
-                    NS.performance_monitoring.config.data['etcd_port']),
-                'host': NS.performance_monitoring.config.data[
-                    "etcd_connection"]
-            }
-            self.etcd_orm = etcdobj.Server(etcd_kwargs=etcd_kwargs)
         except TendrlPerformanceMonitoringException as ex:
             Event(
                 ExceptionMessage(
@@ -97,7 +89,6 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
         super(ConfigureNodeMonitoring, self).__init__()
         try:
             self.monitoring_config_init_nodes = []
-            self.init_monitoring()
             self._complete = gevent.event.Event()
         except TendrlPerformanceMonitoringException as ex:
             raise ex
@@ -105,27 +96,9 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
     def _run(self):
         try:
             while not self._complete.is_set():
-                gevent.sleep(1)
-                node_changes = self.etcd_orm.client.watch(
-                    '/nodes', recursive=True, timeout=0)
-                if node_changes is not None and node_changes.value is not None:
-                    node_id = node_changes.key
-                    if node_changes.key.startswith('/nodes/') \
-                            and node_changes.key.endswith(
-                                '/NodeContext/fqdn'):
-                        nodeid_pre_trim = node_id[len('/nodes/'):]
-                        node_id = nodeid_pre_trim[: -len('/NodeContext/fqdn')]
-                        fqdn = node_changes.value
-                        if node_id not in self.monitoring_config_init_nodes:
-                            gevent.sleep(0.1)
-                            gevent.spawn(
-                                self.init_monitoring_on_node,
-                                {
-                                    'node_id': node_id,
-                                    'fqdn': fqdn
-                                }
-                            )
-                            self.monitoring_config_init_nodes.append(node_id)
+                gevent.sleep(0.1)
+                self.init_monitoring()
+                gevent.sleep(10)
         except (EtcdConnectionFailed, Exception) as e:
             Event(
                 ExceptionMessage(

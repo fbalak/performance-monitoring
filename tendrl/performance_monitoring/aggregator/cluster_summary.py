@@ -1,6 +1,5 @@
 from etcd import EtcdKeyNotFound
-import multiprocessing
-import time
+import gevent
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.objects.cluster_summary \
@@ -9,10 +8,10 @@ from tendrl.performance_monitoring.sds import SDSMonitoringManager
 from tendrl.performance_monitoring.utils import read as etcd_read
 
 
-class ClusterSummarise(multiprocessing.Process):
+class ClusterSummarise(gevent.greenlet.Greenlet):
     def __init__(self):
         super(ClusterSummarise, self).__init__()
-        self._complete = multiprocessing.Event()
+        self._complete = gevent.event.Event()
         self.sds_monitoring_manager = SDSMonitoringManager()
 
     def parse_host_count(self, cluster_nodes):
@@ -87,12 +86,13 @@ class ClusterSummarise(multiprocessing.Process):
             cluster_id=cluster_id,
         )
 
-    def run(self):
+    def _run(self):
         while not self._complete.is_set():
             cluster_summaries = []
             try:
                 clusters = etcd_read('/clusters')
                 for clusterid, cluster_det in clusters.iteritems():
+                    gevent.sleep(0.1)
                     cluster_summary = self.parse_cluster(clusterid,
                                                          cluster_det)
                     cluster_summary.save(update=False)
@@ -101,6 +101,8 @@ class ClusterSummarise(multiprocessing.Process):
                     cluster_summaries,
                     clusters
                 )
+            except EtcdKeyNotFound:
+                pass
             except Exception as ex:
                 Event(
                     ExceptionMessage(
@@ -112,7 +114,7 @@ class ClusterSummarise(multiprocessing.Process):
                             }
                     )
                 )
-            time.sleep(60)
+            gevent.sleep(60)
 
     def stop(self):
         self._complete.set()

@@ -36,7 +36,9 @@ def initiate_config_generation(node_det):
             'type': 'monitoring',
             "parameters": {
                 'plugin_name': node_det['plugin'],
-                'plugin_conf_params': json.dumps(node_det['plugin_conf']),
+                'plugin_conf_params': json.dumps(
+                    node_det['plugin_conf']
+                ).encode('utf-8'),
                 'Node.fqdn': node_det['fqdn'],
                 'Service.name': 'collectd',
             },
@@ -44,7 +46,7 @@ def initiate_config_generation(node_det):
         Job(
             job_id=str(uuid.uuid4()),
             status='new',
-            payload=json.dumps(job_params),
+            payload=json.dumps(job_params).encode('utf-8'),
         ).save()
     except (EtcdException, EtcdConnectionFailed, Exception) as ex:
         raise TendrlPerformanceMonitoringException(
