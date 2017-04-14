@@ -1,0 +1,5 @@
+CLUSTER_UTILIZATION = "cluster_utilization"
+SYSTEM_UTILIZATION = "system_utilization"
+USED = "used"
+TOTAL = "total"
+PERCENT_USED = "percent_used"

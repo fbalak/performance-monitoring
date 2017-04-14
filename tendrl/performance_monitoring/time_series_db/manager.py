@@ -4,9 +4,14 @@ import inspect
 import os
 import re
 import six
+from string import Template
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
+from tendrl.performance_monitoring import constants as \
+    pm_consts
+from tendrl.performance_monitoring.exceptions \
+    import TendrlPerformanceMonitoringException
 
 
 class FailedToFetchTimeSeriesData(Exception):
@@ -45,7 +50,19 @@ class TimeSeriesDBPlugin(object):
         raise NotImplementedError()
 
     @abstractmethod
+    def push_metrics(self, metric_name, metric_value):
+        raise NotImplementedError()
+
+    @abstractmethod
     def destroy(self):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_utilizationtype(self, resource_name, utilization_type):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_delimeter(self):
         raise NotImplementedError()
 
 
@@ -102,3 +119,26 @@ class TimeSeriesDBManager(object):
 
     def stop(self):
         self.plugin.destroy()
+
+    def get_timeseriesnamefromresource(self, **kwargs):
+        # If in future this function starts to appear more plugin
+        # specific move it from here to respecive TimeSeriesDBPlugin
+        delimeter = self.get_plugin().get_delimeter()
+        resource_name = kwargs['resource_name']
+        kwargs['utilization_type'] = self.get_plugin().get_utilizationtype(
+            resource_name,
+            kwargs['utilization_type']
+        )
+        pattern = {
+            pm_consts.SYSTEM_UTILIZATION: '$sds_type{0}utilization{0}'
+            '$utilization_type',
+            pm_consts.CLUSTER_UTILIZATION: 'cluster_$cluster_id{0}'
+            'cluster_utilization{0}$utilization_type'
+        }
+        if not pattern.get(resource_name):
+            raise TendrlPerformanceMonitoringException(
+                'No pattern found for the requested resource %s.'
+            )
+        return Template(
+            pattern.get(resource_name).format(delimeter)
+        ).substitute(kwargs)
