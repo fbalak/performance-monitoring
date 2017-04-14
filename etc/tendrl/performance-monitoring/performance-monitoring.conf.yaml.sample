@@ -11,5 +11,6 @@ log_level: DEBUG
 time_series_db: graphite
 time_series_db_server: 0.0.0.0
 time_series_db_port: 10080
+carbon_port: 2003
 tags:
 - tendrl/performance-monitoring

@@ -21,6 +21,8 @@ from tendrl.performance_monitoring.configure.configure_cluster_monitoring\
     import ConfigureClusterMonitoring
 from tendrl.performance_monitoring.configure.configure_node_monitoring \
     import ConfigureNodeMonitoring
+from tendrl.performance_monitoring import constants as \
+    pm_consts
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.time_series_db.manager \
@@ -30,7 +32,7 @@ app = Flask(__name__)
 
 
 @app.route("/monitoring/nodes/<node_id>/<resource_name>/stats")
-def get_stats(node_id, resource_name):
+def get_nodestats(node_id, resource_name):
     try:
         node_name = NS.central_store_thread.get_node_name_from_id(
             node_id
@@ -39,6 +41,70 @@ def get_stats(node_id, resource_name):
             NS.time_series_db_manager.\
             get_plugin().\
             get_metric_stats(node_name, resource_name),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        ValueError,
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        SyntaxError,
+        etcd.EtcdException,
+        TypeError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
+        return Response(str(ex), status=500, mimetype='application/json')
+
+
+@app.route(
+    "/monitoring/clusters/<cluster_id>/utilization/<utiliation_type>/stats"
+)
+def get_clusterutilization(cluster_id, utiliation_type):
+    try:
+        entity_name, metric_name = NS.time_series_db_manager.\
+            get_timeseriesnamefromresource(
+                resource_name=pm_consts.CLUSTER_UTILIZATION,
+                utilization_type=utiliation_type,
+                cluster_id=cluster_id
+        ).split(
+            NS.time_series_db_manager.get_plugin().get_delimeter(),
+            1
+        )
+        return Response(
+            NS.time_series_db_manager.\
+            get_plugin().\
+            get_metric_stats(entity_name, metric_name),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        ValueError,
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        SyntaxError,
+        etcd.EtcdException,
+        TypeError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
+        return Response(str(ex), status=500, mimetype='application/json')
+
+
+@app.route("/monitoring/system/<sds_type>/utilization/<utiliation_type>/stats")
+def get_sdsutilization(sds_type, utiliation_type):
+    try:
+        entity_name, metric_name = NS.time_series_db_manager.\
+            get_timeseriesnamefromresource(
+                resource_name=pm_consts.SYSTEM_UTILIZATION,
+                utilization_type=utiliation_type,
+                sds_type=sds_type
+        ).split(
+            NS.time_series_db_manager.get_plugin().get_delimeter(),
+            1
+        )
+        return Response(
+            NS.time_series_db_manager.\
+            get_plugin().\
+            get_metric_stats(entity_name, metric_name),
             status=200,
             mimetype='application/json'
         )
