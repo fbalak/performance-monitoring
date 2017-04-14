@@ -1,5 +1,6 @@
 [Unit]
 Description= Daemon to manage tendrl monitoring
+Requires=tendrl-node-agent.service
 
 [Service]
 Type=simple
