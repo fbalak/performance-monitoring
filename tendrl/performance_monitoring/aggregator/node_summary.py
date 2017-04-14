@@ -3,11 +3,15 @@ from etcd import EtcdConnectionFailed
 from etcd import EtcdKeyNotFound
 import gevent
 import math
+from pytz import utc
 import re
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
+from tendrl.commons.utils.time_utils import now as tendrl_now
 
+from tendrl.performance_monitoring import constants as \
+    pm_consts
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.node_summary \
@@ -161,6 +165,10 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         alert_count = self.get_alert_count(node)
         old_summary = NodeSummary(
             node_id=node,
+            name='',
+            status='',
+            role='',
+            cluster_name='',
             cpu_usage={
                 'percent_used': '',
                 'updated_at': ''
@@ -202,14 +210,20 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             memory_usage = old_summary.memory_usage
         if storage_usage is None:
             storage_usage = old_summary.storage_usage
-        summary = NodeSummary(
-            node,
-            cpu_usage,
-            memory_usage,
-            storage_usage,
-            alert_count
-        )
         try:
+            summary = NodeSummary(
+                name=NS.central_store_thread.get_node_name_from_id(node),
+                node_id=node,
+                status=self.get_node_status(node),
+                role=NS.central_store_thread.get_node_role(node),
+                cluster_name=NS.central_store_thread.get_node_cluster_name(
+                    node
+                ),
+                cpu_usage=cpu_usage,
+                memory_usage=memory_usage,
+                storage_usage=storage_usage,
+                alert_count=alert_count
+            )
             summary.save(update=False)
         except Exception as ex:
             Event(
@@ -217,11 +231,27 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                     priority="error",
                     publisher=NS.publisher_id,
                     payload={"message": 'Exception caught while trying to '
-                                        'save %s' % str(summary.__dict__),
+                                        'save summary for node %s' % str(node),
                              "exception": ex
                              }
                 )
             )
+
+    def get_node_status(self, node_id):
+        last_seen_at = NS.central_store_thread.get_node_last_seen_at(node_id)
+        if last_seen_at:
+            interval = (
+                tendrl_now() -
+                datetime.datetime.strptime(
+                    last_seen_at[:-6],
+                    "%Y-%m-%dT%H:%M:%S.%f"
+                ).replace(tzinfo=utc)
+            ).total_seconds()
+            if interval < 5:
+                return pm_consts.STATUS_UP
+            else:
+                return pm_consts.STATUS_DOWN
+        return pm_consts.STATUS_NOT_MONITORED
 
     def calculate_host_summaries(self):
         nodes = NS.central_store_thread.get_node_ids()
