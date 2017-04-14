@@ -9,6 +9,8 @@ import six
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.commons.message import Message
+from tendrl.performance_monitoring import constants as \
+    pm_consts
 from tendrl.performance_monitoring.utils import list_modules_in_package_path
 from tendrl.performance_monitoring.utils import read as etcd_read_key
 
@@ -105,6 +107,31 @@ class SDSPlugin(object):
                     ) / (
                         net_utilization['total'] * 1.0
                     )
+        # Push the computed system utilization to time-series db
+        NS.time_series_db_manager.get_plugin().push_metrics(
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                sds_type=self.name,
+                utilization_type=pm_consts.TOTAL,
+                resource_name=pm_consts.SYSTEM_UTILIZATION
+            ),
+            net_utilization[pm_consts.TOTAL]
+        )
+        NS.time_series_db_manager.get_plugin().push_metrics(
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                sds_type=self.name,
+                utilization_type=pm_consts.USED,
+                resource_name=pm_consts.SYSTEM_UTILIZATION
+            ),
+            net_utilization[pm_consts.USED]
+        )
+        NS.time_series_db_manager.get_plugin().push_metrics(
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                sds_type=self.name,
+                utilization_type=pm_consts.PERCENT_USED,
+                resource_name=pm_consts.SYSTEM_UTILIZATION
+            ),
+            net_utilization[pm_consts.PERCENT_USED]
+        )
         return net_utilization
 
     def get_system_host_status_wise_counts(self, cluster_summaries):
