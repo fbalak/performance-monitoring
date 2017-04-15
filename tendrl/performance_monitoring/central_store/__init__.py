@@ -49,6 +49,14 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             )
             raise TendrlPerformanceMonitoringException(str(ex))
 
+    def get_node_last_seen_at(self, node_id):
+        try:
+            return NS.etcd_orm.client.read(
+                '/monitoring/nodes/%s/last_seen_at' % node_id
+            ).value
+        except Exception:
+            return None
+
     def get_node_name_from_id(self, node_id):
         try:
             node_name_path = '/nodes/%s/NodeContext/fqdn' % node_id
@@ -62,6 +70,32 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             TypeError
         ) as ex:
             raise TendrlPerformanceMonitoringException(str(ex))
+
+    def get_node_role(self, node_id):
+        try:
+            return NS.etcd_orm.client.read(
+                '/nodes/%s/NodeContext/tags' % node_id
+            ).value
+        except Exception as ex:
+            raise TendrlPerformanceMonitoringException(
+                "Failed to fetch the role of node %s. Error %s" % (
+                    node_id,
+                    str(ex)
+                )
+            )
+
+    def get_node_cluster_name(self, node_id):
+        try:
+            return NS.etcd_orm.client.read(
+                '/nodes/%s/TendrlContext/cluster_name' % node_id
+            ).value
+        except Exception as ex:
+            raise TendrlPerformanceMonitoringException(
+                "Failed to fetch cluster name for node %s. Error: %s" % (
+                    node_id,
+                    str(ex)
+                )
+            )
 
     def get_node_ids(self):
         try:
@@ -131,7 +165,11 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         for node_id in node_ids:
             try:
                 current_node_summary = NodeSummary(
-                    node_id,
+                    node_id=node_id,
+                    name='',
+                    status='',
+                    role='',
+                    cluster_name='',
                     cpu_usage={
                         'percent_used': '',
                         'updated_at': ''
