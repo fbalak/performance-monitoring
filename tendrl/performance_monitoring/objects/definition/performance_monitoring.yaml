@@ -3,7 +3,15 @@ namespace.performance_monitoring:
   objects:
     NodeSummary:
       attrs:
+        name:
+          type: String
         node_id:
+          type: String
+        status:
+          type: String
+        role:
+          type: String
+        cluster_name:
           type: String
         cpu_usage:
           type: Dict

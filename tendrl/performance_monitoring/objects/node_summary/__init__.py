@@ -3,15 +3,20 @@ from tendrl.commons.objects import BaseObject
 
 
 class NodeSummary(BaseObject):
-    def __init__(self,
-                 node_id=None,
-                 cpu_usage=None,
-                 memory_usage=None,
-                 storage_usage=None,
-                 alert_count=None,
-                 *args,
-                 **kwargs
-                 ):
+    def __init__(
+        self,
+        name=None,
+        node_id=None,
+        status=None,
+        role=None,
+        cluster_name=None,
+        cpu_usage=None,
+        memory_usage=None,
+        storage_usage=None,
+        alert_count=None,
+        *args,
+        **kwargs
+    ):
         super(NodeSummary, self).__init__(*args, **kwargs)
         self.node_id = node_id
         self.value = 'monitoring/summary/nodes/%s' % self.node_id
@@ -22,6 +27,10 @@ class NodeSummary(BaseObject):
             self.memory_usage = memory_usage
         if storage_usage is not None:
             self.storage_usage = storage_usage
+        self.name = name
+        self.status = status
+        self.role = role
+        self.cluster_name = cluster_name
         self.alert_count = alert_count
 
     def to_json(self):
