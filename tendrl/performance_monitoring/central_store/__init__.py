@@ -1,6 +1,7 @@
 from etcd import EtcdConnectionFailed
 from etcd import EtcdException
 from etcd import EtcdKeyNotFound
+import json
 from ruamel import yaml
 
 from tendrl.commons import central_store
@@ -147,7 +148,19 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def get_cluster_summary(self, cluster_id):
         try:
-            return etcd_read('/monitoring/summary/clusters/%s' % cluster_id)
+            cluster_summary = etcd_read(
+                '/monitoring/summary/clusters/%s' % cluster_id
+            )
+            # object#load and object#save treats a nested dict field as
+            # a unicode string. Hence this fix is required until that.
+            if (
+                'node_summaries' in cluster_summary and
+                isinstance(cluster_summary['node_summaries'], basestring)
+            ):
+                cluster_summary['node_summaries'] = json.loads(
+                    cluster_summary['node_summaries']
+                )
+            return cluster_summary
         except Exception as ex:
             TendrlPerformanceMonitoringException(str(ex))
 
