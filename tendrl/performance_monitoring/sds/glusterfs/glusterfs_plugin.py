@@ -10,7 +10,7 @@ from tendrl.performance_monitoring.utils import read as etcd_read_key
 
 class GlusterFSPlugin(SDSPlugin):
 
-    name = 'glusterfs'
+    name = 'gluster'
 
     def __init__(self):
         SDSPlugin.__init__(self)
