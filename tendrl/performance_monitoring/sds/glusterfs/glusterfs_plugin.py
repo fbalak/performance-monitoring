@@ -53,7 +53,7 @@ class GlusterFSPlugin(SDSPlugin):
                     plugin_config['cluster_id'] = \
                         sds_tendrl_context['integration_id']
                     configs.append({
-                        'plugin': "%s_%s" % (self.name, plugin),
+                        'plugin': "%sfs_%s" % (self.name, plugin),
                         'plugin_conf': plugin_config,
                         'node_id': node_id,
                         'fqdn': sds_node_context['fqdn']

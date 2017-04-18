@@ -1,13 +1,14 @@
+import json
 from tendrl.commons.etcdobj import EtcdObj
 from tendrl.commons.objects import BaseObject
 
 
 class SystemSummary(BaseObject):
     def __init__(self,
-                 cluster_count={},
-                 utilization={},
-                 hosts_count={},
-                 sds_det={},
+                 cluster_count={'': ''},
+                 utilization={'': ''},
+                 hosts_count={'': ''},
+                 sds_det={'': ''},
                  sds_type='',
                  *args,
                  **kwargs
@@ -26,6 +27,23 @@ class SystemSummary(BaseObject):
 
     def to_json(self):
         return self.__dict__
+
+    def save(self, update=False):
+        # Convert nested dict to str @ save and convert back to
+        # dict on load
+        self.sds_det = json.dumps(self.sds_det)
+        self.cluster_count = json.dumps(self.cluster_count)
+        self.utilization = json.dumps(self.utilization)
+        self.hosts_count = json.dumps(self.hosts_count)
+        super(SystemSummary, self).save(update=update)
+
+    def load(self):
+        summary = super(SystemSummary, self).load()
+        summary.sds_det = json.loads(summary.sds_det[''])
+        summary.cluster_count = json.loads(summary.cluster_count[''])
+        summary.utilization = json.loads(summary.utilization[''])
+        summary.hosts_count = json.loads(summary.hosts_count[''])
+        return summary
 
 
 class _SystemSummaryEtcd(EtcdObj):

@@ -13,7 +13,7 @@ thresholds:
     swap:
       Warning: 50
       Failure: 70
-  glusterfs:
+  gluster:
     cluster_utilization:
       Warning: 75
       Failure: 90
