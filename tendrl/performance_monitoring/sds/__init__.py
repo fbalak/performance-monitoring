@@ -199,7 +199,7 @@ class SDSMonitoringManager(object):
             mod = importlib.import_module(sds_fqdn)
             clsmembers = inspect.getmembers(mod, inspect.isclass)
             for name, cls in clsmembers:
-                if isinstance(cls, SDSPlugin):
+                if issubclass(cls, SDSPlugin):
                     if cls.name:
                         self.supported_sds.append(cls.name)
 

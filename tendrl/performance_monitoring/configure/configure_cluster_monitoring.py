@@ -1,6 +1,4 @@
 import gevent
-
-from tendrl.performance_monitoring.sds import SDSMonitoringManager
 from tendrl.performance_monitoring.utils import initiate_config_generation
 
 
@@ -8,7 +6,6 @@ class ConfigureClusterMonitoring(gevent.greenlet.Greenlet):
     def __init__(self):
         super(ConfigureClusterMonitoring, self).__init__()
         self._complete = gevent.event.Event()
-        self.sds_monitoring_manager = SDSMonitoringManager()
 
     def get_cluster_ids(self):
         cluster_ids = []
@@ -30,7 +27,7 @@ class ConfigureClusterMonitoring(gevent.greenlet.Greenlet):
             try:
                 cluster_ids = self.get_cluster_ids()
                 for cluster_id in cluster_ids:
-                    configs = self.sds_monitoring_manager.configure_monitoring(
+                    configs = NS.sds_monitoring_manager.configure_monitoring(
                         cluster_id
                     )
                     if configs:

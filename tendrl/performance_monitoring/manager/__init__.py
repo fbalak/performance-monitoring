@@ -6,6 +6,7 @@ import json
 import multiprocessing
 import os
 import signal
+from uuid import UUID
 from tendrl.commons.config import ConfigNotFound
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -25,6 +26,7 @@ from tendrl.performance_monitoring import constants as \
     pm_consts
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
+from tendrl.performance_monitoring.sds import SDSMonitoringManager
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBManager
 
@@ -70,6 +72,9 @@ def get_clusterutilization(cluster_id, utiliation_type):
             NS.time_series_db_manager.get_plugin().get_delimeter(),
             1
         )
+        # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
+        # with EtcdKeyNotFound if cluster if is invalid
+        NS.etcd_orm.client.read('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
@@ -92,6 +97,11 @@ def get_clusterutilization(cluster_id, utiliation_type):
 @app.route("/monitoring/system/<sds_type>/utilization/<utiliation_type>/stats")
 def get_sdsutilization(sds_type, utiliation_type):
     try:
+        # validate sds-type
+        if sds_type not in NS.sds_monitoring_manager.supported_sds:
+            raise TendrlPerformanceMonitoringException(
+                'Unsupported sds %s' % sds_type
+            )
         entity_name, metric_name = NS.time_series_db_manager.\
             get_timeseriesnamefromresource(
                 resource_name=pm_consts.SYSTEM_UTILIZATION,
@@ -145,6 +155,10 @@ def get_cluster_summary(cluster_id):
 @app.route("/monitoring/system/<cluster_type>/summary")
 def get_system_summary(cluster_type):
     try:
+        if cluster_type not in NS.sds_monitoring_manager.supported_sds:
+            raise TendrlPerformanceMonitoringException(
+                'Unsupported sds %s' % cluster_type
+            )
         summary = NS.central_store_thread.get_system_summary(cluster_type)
         return Response(
             json.dumps(summary),
@@ -204,7 +218,18 @@ def get_node_summary():
         if is_filter:
             node_list = (request.args.items()[0][1]).split(",")
             for index, node in enumerate(node_list):
-                node_list[index] = node_list[index].strip()
+                uuid_string = node_list[index].strip()
+                if UUID(
+                    uuid_string,
+                    version=4
+                ).hex == uuid_string.replace('-', ''):
+                    node_list[index] = node_list[index].strip()
+                else:
+                    raise TendrlPerformanceMonitoringException(
+                        'Node id %s in the parameter is not a valid uuid' % (
+                            uuid_string
+                        )
+                    )
             summary, ret_code, exs = \
                 NS.central_store_thread.get_node_summary(node_list)
         else:
@@ -244,6 +269,7 @@ class TendrlPerformanceManager(object):
                 ]
             )
             NS.configurator_queue = multiprocessing.Queue()
+            NS.sds_monitoring_manager = SDSMonitoringManager()
             self.configure_cluster_monitoring = ConfigureClusterMonitoring()
             self.node_summariser = NodeSummarise()
             self.cluster_summariser = ClusterSummarise()
