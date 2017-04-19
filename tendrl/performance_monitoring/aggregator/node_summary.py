@@ -34,7 +34,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 resource,
                 'latest'
             )
-            if stats == "[]":
+            if stats == "[]" or not stats:
                 raise TendrlPerformanceMonitoringException(
                     'Stats not yet available in time series db'
                 )
@@ -79,7 +79,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 resource,
                 'latest'
             )
-            if stats == "[]":
+            if stats == "[]" or not stats:
                 raise TendrlPerformanceMonitoringException(
                     'Stats not yet available in time series db'
                 )
@@ -188,7 +188,6 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             alert_count=alert_count
         )
         try:
-            NS.etcd_orm.client.read(old_summary.value)
             old_summary = old_summary.load()
         except EtcdKeyNotFound:
             pass
@@ -256,8 +255,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
     def calculate_host_summaries(self):
         nodes = NS.central_store_thread.get_node_ids()
         for node in nodes:
-            gevent.spawn(self.calculate_host_summary, node)
-            gevent.sleep(0.1)
+            self.calculate_host_summary(node)
 
     def _run(self):
         while not self._complete.is_set():

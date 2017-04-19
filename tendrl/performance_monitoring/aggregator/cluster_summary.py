@@ -4,7 +4,6 @@ from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.objects.cluster_summary \
     import ClusterSummary
-from tendrl.performance_monitoring.sds import SDSMonitoringManager
 from tendrl.performance_monitoring.utils import read as etcd_read
 
 
@@ -12,7 +11,6 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
     def __init__(self):
         super(ClusterSummarise, self).__init__()
         self._complete = gevent.event.Event()
-        self.sds_monitoring_manager = SDSMonitoringManager()
 
     def parse_host_count(self, cluster_nodes):
         status_wise_count = {
@@ -79,7 +77,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             node_summaries=self.cluster_nodes_summary(
                 cluster_det.get('nodes', {}).keys()
             ),
-            sds_det=self.sds_monitoring_manager.get_cluster_summary(
+            sds_det=NS.sds_monitoring_manager.get_cluster_summary(
                 cluster_id,
                 cluster_det
             ),
@@ -95,9 +93,9 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                     gevent.sleep(0.1)
                     cluster_summary = self.parse_cluster(clusterid,
                                                          cluster_det)
+                    cluster_summaries.append(cluster_summary.copy())
                     cluster_summary.save(update=False)
-                    cluster_summaries.append(cluster_summary)
-                self.sds_monitoring_manager.compute_system_summary(
+                NS.sds_monitoring_manager.compute_system_summary(
                     cluster_summaries,
                     clusters
                 )

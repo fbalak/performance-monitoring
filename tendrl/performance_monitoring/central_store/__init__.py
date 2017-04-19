@@ -1,7 +1,6 @@
 from etcd import EtcdConnectionFailed
 from etcd import EtcdException
 from etcd import EtcdKeyNotFound
-import json
 from ruamel import yaml
 
 from tendrl.commons import central_store
@@ -9,8 +8,12 @@ from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
+from tendrl.performance_monitoring.objects.cluster_summary \
+    import ClusterSummary
 from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
+from tendrl.performance_monitoring.objects.system_summary \
+    import SystemSummary
 from tendrl.performance_monitoring.utils import read as etcd_read
 
 
@@ -148,25 +151,35 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def get_cluster_summary(self, cluster_id):
         try:
-            cluster_summary = etcd_read(
-                '/monitoring/summary/clusters/%s' % cluster_id
-            )
-            # object#load and object#save treats a nested dict field as
-            # a unicode string. Hence this fix is required until that.
-            if (
-                'node_summaries' in cluster_summary and
-                isinstance(cluster_summary['node_summaries'], basestring)
-            ):
-                cluster_summary['node_summaries'] = json.loads(
-                    cluster_summary['node_summaries']
-                )
-            return cluster_summary
+            summary = ClusterSummary(
+                cluster_id=cluster_id
+            ).load().to_json()
+            if '_etcd_cls' in summary:
+                    del summary['_etcd_cls']
+            if 'value' in summary:
+                del summary['value']
+            if '_defs' in summary:
+                del summary['_defs']
+            if 'list' in summary:
+                del summary['list']
+            return summary
         except Exception as ex:
             TendrlPerformanceMonitoringException(str(ex))
 
     def get_system_summary(self, cluster_type):
         try:
-            return etcd_read('/monitoring/summary/system/%s' % cluster_type)
+            summary = SystemSummary(
+                sds_type=cluster_type
+            ).load().to_json()
+            if '_etcd_cls' in summary:
+                    del summary['_etcd_cls']
+            if 'value' in summary:
+                del summary['value']
+            if '_defs' in summary:
+                del summary['_defs']
+            if 'list' in summary:
+                del summary['list']
+            return summary
         except Exception as ex:
             TendrlPerformanceMonitoringException(str(ex))
 
@@ -178,28 +191,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         for node_id in node_ids:
             try:
                 current_node_summary = NodeSummary(
-                    node_id=node_id,
-                    name='',
-                    status='',
-                    role='',
-                    cluster_name='',
-                    cpu_usage={
-                        'percent_used': '',
-                        'updated_at': ''
-                    },
-                    memory_usage={
-                        'percent_used': '',
-                        'updated_at': '',
-                        'used': '',
-                        'total': ''
-                    },
-                    storage_usage={
-                        'percent_used': '',
-                        'total': '',
-                        'used': '',
-                        'updated_at': ''
-                    },
-                    alert_count=0
+                    node_id=node_id
                 ).load().to_json()
                 if '_etcd_cls' in current_node_summary:
                     del current_node_summary['_etcd_cls']
