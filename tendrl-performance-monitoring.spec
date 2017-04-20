@@ -1,5 +1,5 @@
 Name: tendrl-performance-monitoring
-Version: 1.2.2
+Version: 1.2.3
 Release: 1%{?dist}
 BuildArch: noarch
 Summary: Module for Tendrl Performance Monitoring
@@ -83,6 +83,9 @@ py.test -v tendrl/performance_monitoring/tests || :
 %{_unitdir}/tendrl-performance-monitoring.service
 
 %changelog
+* Thu Apr 20 2017 Rohan Kanade <rkanade@redhat.com> - 1.2.3-1
+- Release tendrl-performance-monitoring v1.2.3
+
 * Wed Apr 05 2017 Rohan Kanade <rkanade@redhat.com> - 1.2.2-1
 - Release tendrl-performance-monitoring v1.2.2
 
