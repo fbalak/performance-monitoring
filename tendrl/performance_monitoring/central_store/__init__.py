@@ -190,9 +190,9 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             node_ids = self.get_node_ids()
         for node_id in node_ids:
             try:
-                current_node_summary = NodeSummary(
-                    node_id=node_id
-                ).load().to_json()
+                current_node_summary = etcd_read(
+                    '/monitoring/summary/nodes/%s' % node_id
+                )
                 if '_etcd_cls' in current_node_summary:
                     del current_node_summary['_etcd_cls']
                 if 'value' in current_node_summary:
