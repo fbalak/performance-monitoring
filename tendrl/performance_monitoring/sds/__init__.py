@@ -9,6 +9,7 @@ import six
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.commons.message import Message
+from tendrl.performance_monitoring.utils import parse_resource_alerts
 from tendrl.performance_monitoring import constants as \
     pm_consts
 from tendrl.performance_monitoring.utils import list_modules_in_package_path
@@ -61,7 +62,14 @@ class SDSPlugin(object):
         )
 
     def get_clusters_status_wise_counts(self, clusters):
-        clusters_status_wise_counts = {'total': 0}
+        clusters_status_wise_counts = {
+            'total': 0,
+            'near_full': 0,
+            pm_consts.CRITICAL_ALERTS: [],
+            pm_consts.WARNING_ALERTS: []
+        }
+        cluster_critical_alerts = []
+        cluster_critical_alerts = []
         for cluster_id, cluster_det in clusters.iteritems():
             if (
                 self.name in
@@ -78,6 +86,27 @@ class SDSPlugin(object):
                             clusters_status_wise_counts[cluster_status] + 1
                     clusters_status_wise_counts['total'] = \
                         clusters_status_wise_counts['total'] + 1
+                cluster_critical_alerts, cluster_warning_alerts = \
+                    parse_resource_alerts(
+                        None,
+                        pm_consts.CLUSTER,
+                        cluster_id=cluster_id
+                    )
+                clusters_status_wise_counts[
+                    pm_consts.CRITICAL_ALERTS
+                ].extend(cluster_critical_alerts)
+                clusters_status_wise_counts[
+                    pm_consts.WARNING_ALERTS
+                ].extend(cluster_warning_alerts)
+        for cluster_alert in clusters_status_wise_counts[
+            pm_consts.CRITICAL_ALERTS
+        ]:
+            if (
+                cluster_alert['severity'] == pm_consts.CRITICAL and
+                cluster_alert['resource'] == 'cluster_utilization'
+            ):
+                clusters_status_wise_counts['near_full'] = \
+                    clusters_status_wise_counts.get('near_full', 0) + 1
         return clusters_status_wise_counts
 
     def get_system_utilization(self, cluster_summaries):

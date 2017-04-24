@@ -149,6 +149,18 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             node_alerts_arr.append(node_alert)
         return node_alerts_arr
 
+    def get_cluster_alerts(self, cluster_id):
+        cluster_alerts = []
+        try:
+            c_alerts = etcd_read(
+                '/alerting/clusters/%s' % cluster_id
+            )
+            for alert_id, alert in c_alerts.iteritems():
+                cluster_alerts.append(alert)
+            return cluster_alerts
+        except Exception:
+            return cluster_alerts
+
     def get_cluster_summary(self, cluster_id):
         try:
             summary = ClusterSummary(
