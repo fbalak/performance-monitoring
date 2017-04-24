@@ -3,6 +3,8 @@ from etcd import EtcdException
 import json
 import pkgutil
 from tendrl.commons.objects.job import Job
+from tendrl.performance_monitoring import constants as \
+    pm_consts
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 import uuid
@@ -71,3 +73,33 @@ def read(key):
             else:
                 result[item.key.split("/")[-1]] = item.value
     return result
+
+
+def parse_resource_alerts(resource_type, resource_classification, **kwargs):
+    alerts = {}
+    if resource_classification == pm_consts.NODE:
+        alerts = NS.central_store_thread.get_node_alerts(
+            **kwargs
+        )
+    if resource_classification == pm_consts.CLUSTER:
+        alerts = NS.central_store_thread.get_cluster_alerts(
+            **kwargs
+        )
+    critical_alerts = []
+    warning_alerts = []
+    for alert in alerts:
+        if alert['acked'].lower() == "true":
+            continue
+        if resource_type:
+            for alert_type in pm_consts.SUPPORTED_ALERT_TYPES:
+                if alert['resource'] == '%s_%s' % (resource_type, alert_type):
+                    if alert['severity'] == pm_consts.CRITICAL:
+                        critical_alerts.append(alert)
+                    if alert['severity'] == pm_consts.WARNING:
+                        warning_alerts.append(alert)
+        else:
+            if alert['severity'] == pm_consts.CRITICAL:
+                critical_alerts.append(alert)
+            if alert['severity'] == pm_consts.WARNING:
+                warning_alerts.append(alert)
+    return critical_alerts, warning_alerts
