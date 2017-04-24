@@ -2,9 +2,12 @@ import ast
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
+from tendrl.performance_monitoring import constants as \
+    pm_consts
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
+from tendrl.performance_monitoring.utils import parse_resource_alerts
 from tendrl.performance_monitoring.utils import read as etcd_read_key
 
 
@@ -60,7 +63,27 @@ class GlusterFSPlugin(SDSPlugin):
                     })
         return configs
 
-    def get_volume_status_wise_counts(self, volumes_det):
+    def get_brick_status_wise_counts(self, volumes_det, cluster_id):
+        brick_status_wise_counts = {'stopped': 0, 'total': 0}
+        for volume_id, volume_det in volumes_det.iteritems():
+            for brick_path, brick_det in volume_det['Bricks'].iteritems():
+                if brick_det['status'] == 'Stopped':
+                    brick_status_wise_counts['stopped'] = \
+                        brick_status_wise_counts['stopped'] + 1
+                brick_status_wise_counts['total'] = \
+                    brick_status_wise_counts['total'] + 1
+        brick_status_wise_counts[
+            pm_consts.CRITICAL_ALERTS
+        ], brick_status_wise_counts[
+            pm_consts.WARNING_ALERTS
+        ] = parse_resource_alerts(
+            'brick',
+            pm_consts.CLUSTER,
+            cluster_id=cluster_id
+        )
+        return brick_status_wise_counts
+
+    def get_volume_status_wise_counts(self, volumes_det, cluster_id):
         volume_status_wise_counts = {'down': 0, 'total': 0}
         # Needs to be tested
         for vol_id, vol_det in volumes_det.iteritems():
@@ -69,9 +92,19 @@ class GlusterFSPlugin(SDSPlugin):
                     volume_status_wise_counts['down'] + 1
             volume_status_wise_counts['total'] = \
                 volume_status_wise_counts['total'] + 1
+        volume_status_wise_counts[
+            pm_consts.CRITICAL_ALERTS
+        ], volume_status_wise_counts[
+            pm_consts.WARNING_ALERTS
+        ] = parse_resource_alerts(
+            'volume',
+            pm_consts.CLUSTER,
+            cluster_id=cluster_id
+        )
         return volume_status_wise_counts
 
-    def get_most_used_volumes(self, volumes_det):
+    def get_most_used_volumes(self, cluster_det):
+        volumes_det = cluster_det.get('Volumes', {})
         # Needs to be tested
         most_used_volumes = []
         v_sort = sorted(
@@ -80,6 +113,10 @@ class GlusterFSPlugin(SDSPlugin):
         v_sort.reverse()
         for volume_id in v_sort:
             vol_det = volumes_det.get(volume_id)
+            vol_det['cluster_name'] = cluster_det.get(
+                'TendrlContext',
+                {}
+            ).get('cluster_name', '')
             most_used_volumes.append(vol_det)
         return most_used_volumes[:5]
 
@@ -90,15 +127,57 @@ class GlusterFSPlugin(SDSPlugin):
         )
         ret_val['volume_status_wise_counts'] = \
             self.get_volume_status_wise_counts(
-                cluster_det.get('Volumes', {})
+                cluster_det.get('Volumes', {}),
+                cluster_id
+        )
+        ret_val['brick_status_wise_counts'] = \
+            self.get_brick_status_wise_counts(
+                cluster_det.get('Volumes', {}),
+                cluster_id
         )
         ret_val['most_used_volumes'] = self.get_most_used_volumes(
-            cluster_det.get('Volumes', {})
+            cluster_det
         )
         return ret_val
 
+    def get_system_brick_status_wise_counts(self, cluster_summaries):
+        brick_status_wise_counts = {}
+        brick_critical_alerts = []
+        brick_warning_alerts = []
+        for cluster_summary in cluster_summaries:
+            if self.name in cluster_summary.sds_type:
+                cluster_brick_count = cluster_summary.sds_det.get(
+                    'brick_status_wise_counts', {}
+                )
+                if isinstance(cluster_brick_count, unicode):
+                    cluster_brick_count = ast.literal_eval(
+                        cluster_brick_count.encode('ascii', 'replace')
+                    )
+                for status, count in cluster_brick_count.iteritems():
+                    if isinstance(count, int):
+                        brick_status_wise_counts[status] = \
+                            brick_status_wise_counts.get(status, 0) + \
+                            int(count)
+                brick_critical_alerts.extend(
+                    cluster_brick_count.get(
+                        pm_consts.CRITICAL_ALERTS
+                    )
+                )
+                brick_warning_alerts.extend(
+                    cluster_brick_count.get(
+                        pm_consts.WARNING_ALERTS
+                    )
+                )
+        brick_status_wise_counts[pm_consts.WARNING_ALERTS] = \
+            brick_warning_alerts
+        brick_status_wise_counts[pm_consts.CRITICAL_ALERTS] = \
+            brick_critical_alerts
+        return brick_status_wise_counts
+
     def get_system_volume_status_wise_counts(self, cluster_summaries):
         volume_status_wise_counts = {}
+        volume_critical_alerts = []
+        volume_warning_alerts = []
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
                 cluster_volume_count = cluster_summary.sds_det.get(
@@ -109,8 +188,24 @@ class GlusterFSPlugin(SDSPlugin):
                         cluster_volume_count.encode('ascii', 'replace')
                     )
                 for status, count in cluster_volume_count.iteritems():
-                    volume_status_wise_counts[status] = \
-                        volume_status_wise_counts.get(status, 0) + int(count)
+                    if isinstance(count, int):
+                        volume_status_wise_counts[status] = \
+                            volume_status_wise_counts.get(status, 0) + \
+                            int(count)
+                volume_critical_alerts.extend(
+                    cluster_volume_count.get(
+                        pm_consts.CRITICAL_ALERTS
+                    )
+                )
+                volume_warning_alerts.extend(
+                    cluster_volume_count.get(
+                        pm_consts.WARNING_ALERTS
+                    )
+                )
+        volume_status_wise_counts[pm_consts.WARNING_ALERTS] = \
+            volume_warning_alerts
+        volume_status_wise_counts[pm_consts.CRITICAL_ALERTS] = \
+            volume_critical_alerts
         return volume_status_wise_counts
 
     def get_system_max_used_volumes(self, cluster_summaries):
@@ -151,6 +246,9 @@ class GlusterFSPlugin(SDSPlugin):
                         cluster_summaries
                     ),
                     'services_count': self.get_system_services_count(
+                        cluster_summaries
+                    ),
+                    'brick_counts': self.get_system_brick_status_wise_counts(
                         cluster_summaries
                     )
                 },
