@@ -2,9 +2,12 @@ import ast
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
+from tendrl.performance_monitoring import constants as \
+    pm_consts
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
+from tendrl.performance_monitoring.utils import parse_resource_alerts
 from tendrl.performance_monitoring.utils import read as etcd_read_key
 
 
@@ -71,6 +74,10 @@ class CephPlugin(SDSPlugin):
         p_sort.reverse()
         for pool_id in p_sort:
             pool_det = pools.get(pool_id)
+            pool_det['cluster_name'] = cluster_det.get(
+                'TendrlContext',
+                {}
+            ).get('sds_name', '')
             most_used_pools.append(pool_det)
         return most_used_pools[:5]
 
@@ -88,6 +95,9 @@ class CephPlugin(SDSPlugin):
                     ) / (
                         int(rbd_det['provisioned']) * 1.0
                     )
+                rbd_det['cluster_name'] = cluster_det.get(
+                    'TendrlContext', {}
+                ).get('sds_name', '')
                 rbds.append(rbd_det)
         most_used_rbds = sorted(rbds, key=lambda k: k['percent_used'])
         most_used_rbds.reverse()
@@ -112,6 +122,18 @@ class CephPlugin(SDSPlugin):
                 if 'up' not in osd.get('state'):
                     osd_counts['down'] = osd_counts['down'] + 1
                 osd_counts['total'] = osd_counts['total'] + 1
+        osd_counts[
+            pm_consts.CRITICAL_ALERTS
+        ], osd_counts[
+            pm_consts.WARNING_ALERTS
+        ] = parse_resource_alerts(
+            'osd',
+            pm_consts.CLUSTER,
+            cluster_id=cluster_det.get(
+                'TendrlContext',
+                {}
+            ).get('integration_id', '')
+        )
         return osd_counts
 
     def get_mon_status_wise_counts(self, cluster_det):
@@ -180,6 +202,8 @@ class CephPlugin(SDSPlugin):
 
     def get_system_osd_status_wise_counts(self, cluster_summaries):
         osd_status_wise_counts = {}
+        osd_critical_alerts = []
+        osd_warning_alerts = []
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
                 cluster_osd_count = \
@@ -192,8 +216,23 @@ class CephPlugin(SDSPlugin):
                         cluster_osd_count.encode('ascii', 'ignore')
                     )
                 for status, count in cluster_osd_count.iteritems():
-                    osd_status_wise_counts[status] = \
-                        osd_status_wise_counts.get(status, 0) + count
+                    if isinstance(count, int):
+                        osd_status_wise_counts[status] = \
+                            osd_status_wise_counts.get(status, 0) + count
+                osd_critical_alerts.extend(
+                    cluster_osd_count.get(
+                        pm_consts.CRITICAL_ALERTS
+                    )
+                )
+                osd_warning_alerts.extend(
+                    cluster_osd_count.get(
+                        pm_consts.WARNING_ALERTS
+                    )
+                )
+        osd_status_wise_counts[pm_consts.WARNING_ALERTS] = \
+            osd_warning_alerts
+        osd_status_wise_counts[pm_consts.CRITICAL_ALERTS] = \
+            osd_critical_alerts
         return osd_status_wise_counts
 
     def get_system_max_used_pools(self, cluster_summaries):
