@@ -88,10 +88,7 @@ def parse_resource_alerts(resource_type, resource_classification, **kwargs):
     critical_alerts = []
     warning_alerts = []
     for alert in alerts:
-        if (
-            alert['acked'] == "True" or
-            alert['acked'] == "true"
-        ):
+        if alert['acked'].lower() == "true":
             continue
         if resource_type:
             for alert_type in pm_consts.SUPPORTED_ALERT_TYPES:

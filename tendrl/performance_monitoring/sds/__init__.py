@@ -69,7 +69,7 @@ class SDSPlugin(object):
             pm_consts.WARNING_ALERTS: []
         }
         cluster_critical_alerts = []
-        cluster_critical_alerts = []
+        cluster_warning_alerts = []
         for cluster_id, cluster_det in clusters.iteritems():
             if (
                 self.name in
