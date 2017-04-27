@@ -94,6 +94,80 @@ def get_clusterutilization(cluster_id, utiliation_type):
         return Response(str(ex), status=500, mimetype='application/json')
 
 
+@app.route(
+    "/monitoring/clusters/<cluster_id>/throughput/<network_type>/stats"
+)
+def get_clusterthroughput(cluster_id, network_type):
+    try:
+        entity_name, metric_name = NS.time_series_db_manager.\
+            get_timeseriesnamefromresource(
+                cluster_id=cluster_id,
+                network_type=network_type,
+                resource_name=pm_consts.CLUSTER_THROUGHPUT,
+                utilization_type=pm_consts.USED
+        ).split(
+            NS.time_series_db_manager.get_plugin().get_delimeter(),
+            1
+        )
+        # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
+        # with EtcdKeyNotFound if cluster if is invalid
+        NS.etcd_orm.client.read('/clusters/%s' % cluster_id)
+        return Response(
+            NS.time_series_db_manager.\
+            get_plugin().\
+            get_metric_stats(entity_name, metric_name),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        ValueError,
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        SyntaxError,
+        etcd.EtcdException,
+        TypeError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
+        return Response(str(ex), status=500, mimetype='application/json')
+
+
+@app.route("/monitoring/system/<sds_type>/throughput/<network_type>/stats")
+def get_sdsthroughput(sds_type, network_type):
+    try:
+        # validate sds-type
+        if sds_type not in NS.sds_monitoring_manager.supported_sds:
+            raise TendrlPerformanceMonitoringException(
+                'Unsupported sds %s' % sds_type
+            )
+        entity_name, metric_name = NS.time_series_db_manager.\
+            get_timeseriesnamefromresource(
+                sds_type=sds_type,
+                network_type=network_type,
+                resource_name=pm_consts.SYSTEM_THROUGHPUT,
+                utilization_type=pm_consts.USED
+        ).split(
+            NS.time_series_db_manager.get_plugin().get_delimeter(),
+            1
+        )
+        return Response(
+            NS.time_series_db_manager.\
+            get_plugin().\
+            get_metric_stats(entity_name, metric_name),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        ValueError,
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        SyntaxError,
+        etcd.EtcdException,
+        TypeError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
+        return Response(str(ex), status=500, mimetype='application/json')
+
+
 @app.route("/monitoring/system/<sds_type>/utilization/<utiliation_type>/stats")
 def get_sdsutilization(sds_type, utiliation_type):
     try:

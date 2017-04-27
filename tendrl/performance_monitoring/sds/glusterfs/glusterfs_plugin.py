@@ -1,14 +1,17 @@
 import ast
-
+import json
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
     pm_consts
+from tendrl.performance_monitoring.exceptions \
+    import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
 from tendrl.performance_monitoring.utils import parse_resource_alerts
 from tendrl.performance_monitoring.utils import read as etcd_read_key
+from tendrl.performance_monitoring.utils import get_latest_stat
 
 
 class GlusterFSPlugin(SDSPlugin):
@@ -61,30 +64,51 @@ class GlusterFSPlugin(SDSPlugin):
                         'node_id': node_id,
                         'fqdn': sds_node_context['fqdn']
                     })
+            configs.append({
+                'plugin': "%sfs_peer_network_throughput" % (self.name),
+                'plugin_conf': {
+                    'peer_name': sds_node_context['fqdn']
+                },
+                'node_id': node_id,
+                'fqdn': sds_node_context['fqdn']
+            })
         return configs
 
     def get_brick_status_wise_counts(self, volumes_det, cluster_id):
-        brick_status_wise_counts = {'stopped': 0, 'total': 0}
+        brick_status_wise_counts = {
+            'stopped': 0,
+            'total': 0,
+            pm_consts.WARNING_ALERTS: 0,
+            pm_consts.CRITICAL_ALERTS: 0
+        }
         for volume_id, volume_det in volumes_det.iteritems():
             for brick_path, brick_det in volume_det['Bricks'].iteritems():
+                brick_det = json.loads(brick_det)
                 if brick_det['status'] == 'Stopped':
                     brick_status_wise_counts['stopped'] = \
                         brick_status_wise_counts['stopped'] + 1
                 brick_status_wise_counts['total'] = \
                     brick_status_wise_counts['total'] + 1
-        brick_status_wise_counts[
-            pm_consts.CRITICAL_ALERTS
-        ], brick_status_wise_counts[
-            pm_consts.WARNING_ALERTS
-        ] = parse_resource_alerts(
+        crit_alerts, warn_alerts = parse_resource_alerts(
             'brick',
             pm_consts.CLUSTER,
             cluster_id=cluster_id
         )
+        brick_status_wise_counts[
+            pm_consts.CRITICAL_ALERTS
+        ] = len(crit_alerts)
+        brick_status_wise_counts[
+            pm_consts.WARNING_ALERTS
+        ] = len(warn_alerts)
         return brick_status_wise_counts
 
     def get_volume_status_wise_counts(self, volumes_det, cluster_id):
-        volume_status_wise_counts = {'down': 0, 'total': 0}
+        volume_status_wise_counts = {
+            'down': 0,
+            'total': 0,
+            pm_consts.CRITICAL_ALERTS: 0,
+            pm_consts.WARNING_ALERTS: 0
+        }
         # Needs to be tested
         for vol_id, vol_det in volumes_det.iteritems():
             if 'Started' not in vol_det.get('status'):
@@ -92,15 +116,17 @@ class GlusterFSPlugin(SDSPlugin):
                     volume_status_wise_counts['down'] + 1
             volume_status_wise_counts['total'] = \
                 volume_status_wise_counts['total'] + 1
-        volume_status_wise_counts[
-            pm_consts.CRITICAL_ALERTS
-        ], volume_status_wise_counts[
-            pm_consts.WARNING_ALERTS
-        ] = parse_resource_alerts(
+        crit_alerts, warn_alerts = parse_resource_alerts(
             'volume',
             pm_consts.CLUSTER,
             cluster_id=cluster_id
         )
+        volume_status_wise_counts[
+            pm_consts.CRITICAL_ALERTS
+        ] = len(crit_alerts)
+        volume_status_wise_counts[
+            pm_consts.WARNING_ALERTS
+        ] = len(warn_alerts)
         return volume_status_wise_counts
 
     def get_most_used_volumes(self, cluster_det):
@@ -120,6 +146,50 @@ class GlusterFSPlugin(SDSPlugin):
             most_used_volumes.append(vol_det)
         return most_used_volumes[:5]
 
+    def get_cluster_throughput(self, cluster_nodes, cluster_id):
+        throughput = 0.0
+        cnt = 0
+        for node_id, node_det in cluster_nodes.iteritems():
+            try:
+                node_name = node_det.get('NodeContext', {}).get(
+                    'fqdn',
+                    ''
+                )
+                entity_name, metric_name = \
+                    NS.time_series_db_manager.get_timeseriesnamefromresource(
+                        node_name=node_name,
+                        network_type='cluster_network',
+                        resource_name=pm_consts.NODE_THROUGHPUT,
+                        utilization_type=pm_consts.USED
+                    ).split(
+                        "%s%s" % (
+                            node_name,
+                            NS.time_series_db_manager.get_plugin(
+                            ).get_delimeter()
+                        ),
+                        1
+                    )
+                curr_throughput = get_latest_stat(
+                    node_id,
+                    metric_name
+                )
+                throughput = throughput + curr_throughput
+                cnt = cnt + 1
+            except TendrlPerformanceMonitoringException:
+                continue
+        if cnt > 0:
+            throughput = (throughput * 1.0) / (cnt * 1.0)
+        NS.time_series_db_manager.get_plugin().push_metrics(
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                cluster_id=cluster_id,
+                network_type='cluster_network',
+                resource_name=pm_consts.CLUSTER_THROUGHPUT,
+                utilization_type=pm_consts.USED
+            ),
+            throughput
+        )
+        return throughput
+
     def get_cluster_summary(self, cluster_id, cluster_det):
         ret_val = {}
         ret_val['services_count'] = self.get_services_count(
@@ -138,12 +208,16 @@ class GlusterFSPlugin(SDSPlugin):
         ret_val['most_used_volumes'] = self.get_most_used_volumes(
             cluster_det
         )
+        ret_val['throughput'] = self.get_cluster_throughput(
+            cluster_det.get('nodes', {}),
+            cluster_id
+        )
         return ret_val
 
     def get_system_brick_status_wise_counts(self, cluster_summaries):
         brick_status_wise_counts = {}
-        brick_critical_alerts = []
-        brick_warning_alerts = []
+        brick_critical_alerts = 0
+        brick_warning_alerts = 0
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
                 cluster_brick_count = cluster_summary.sds_det.get(
@@ -158,16 +232,14 @@ class GlusterFSPlugin(SDSPlugin):
                         brick_status_wise_counts[status] = \
                             brick_status_wise_counts.get(status, 0) + \
                             int(count)
-                brick_critical_alerts.extend(
-                    cluster_brick_count.get(
+                brick_critical_alerts = \
+                    brick_critical_alerts + cluster_brick_count.get(
                         pm_consts.CRITICAL_ALERTS
                     )
-                )
-                brick_warning_alerts.extend(
-                    cluster_brick_count.get(
+                brick_warning_alerts = \
+                    brick_warning_alerts + cluster_brick_count.get(
                         pm_consts.WARNING_ALERTS
                     )
-                )
         brick_status_wise_counts[pm_consts.WARNING_ALERTS] = \
             brick_warning_alerts
         brick_status_wise_counts[pm_consts.CRITICAL_ALERTS] = \
@@ -176,8 +248,8 @@ class GlusterFSPlugin(SDSPlugin):
 
     def get_system_volume_status_wise_counts(self, cluster_summaries):
         volume_status_wise_counts = {}
-        volume_critical_alerts = []
-        volume_warning_alerts = []
+        volume_critical_alerts = 0
+        volume_warning_alerts = 0
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
                 cluster_volume_count = cluster_summary.sds_det.get(
@@ -192,16 +264,14 @@ class GlusterFSPlugin(SDSPlugin):
                         volume_status_wise_counts[status] = \
                             volume_status_wise_counts.get(status, 0) + \
                             int(count)
-                volume_critical_alerts.extend(
-                    cluster_volume_count.get(
+                volume_critical_alerts = \
+                    volume_critical_alerts + cluster_volume_count.get(
                         pm_consts.CRITICAL_ALERTS
                     )
-                )
-                volume_warning_alerts.extend(
-                    cluster_volume_count.get(
+                volume_warning_alerts = \
+                    volume_warning_alerts + cluster_volume_count.get(
                         pm_consts.WARNING_ALERTS
                     )
-                )
         volume_status_wise_counts[pm_consts.WARNING_ALERTS] = \
             volume_warning_alerts
         volume_status_wise_counts[pm_consts.CRITICAL_ALERTS] = \
@@ -230,6 +300,27 @@ class GlusterFSPlugin(SDSPlugin):
         most_used_volumes.reverse()
         return most_used_volumes[:5]
 
+    def get_system_throughput(self, cluster_summaries):
+        throughput = 0.0
+        cnt = 0
+        for cluster_summary in cluster_summaries:
+            if self.name in cluster_summary.sds_type:
+                throughput = throughput + cluster_summary.sds_det.get(
+                    'throughput'
+                )
+                cnt = cnt + 1
+        throughput = (throughput * 1.0) / (cnt * 1.0)
+        NS.time_series_db_manager.get_plugin().push_metrics(
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                sds_type=self.name,
+                network_type='cluster_network',
+                resource_name=pm_consts.SYSTEM_THROUGHPUT,
+                utilization_type=pm_consts.USED
+            ),
+            throughput
+        )
+        return throughput
+
     def compute_system_summary(self, cluster_summaries, clusters):
         try:
             SystemSummary(
@@ -250,7 +341,8 @@ class GlusterFSPlugin(SDSPlugin):
                     ),
                     'brick_counts': self.get_system_brick_status_wise_counts(
                         cluster_summaries
-                    )
+                    ),
+                    'throughput': self.get_system_throughput(cluster_summaries)
                 },
                 sds_type=self.name
             ).save(update=False)
