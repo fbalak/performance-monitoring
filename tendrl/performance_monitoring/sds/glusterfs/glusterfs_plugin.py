@@ -64,14 +64,25 @@ class GlusterFSPlugin(SDSPlugin):
                         'node_id': node_id,
                         'fqdn': sds_node_context['fqdn']
                     })
-            configs.append({
-                'plugin': "%sfs_peer_network_throughput" % (self.name),
-                'plugin_conf': {
-                    'peer_name': sds_node_context['fqdn']
-                },
-                'node_id': node_id,
-                'fqdn': sds_node_context['fqdn']
-            })
+            is_configured = True
+            if (
+                "%sfs_peer_network_throughput" % (self.name) not in
+                    self.configured_nodes[node_id]
+            ):
+                node_plugins = self.configured_nodes[node_id]
+                node_plugins.append(
+                    "%sfs_peer_network_throughput" % (self.name)
+                )
+                is_configured = False
+            if not is_configured:
+                configs.append({
+                    'plugin': "%sfs_peer_network_throughput" % (self.name),
+                    'plugin_conf': {
+                        'peer_name': sds_node_context['fqdn']
+                    },
+                    'node_id': node_id,
+                    'fqdn': sds_node_context['fqdn']
+                })
         return configs
 
     def get_brick_status_wise_counts(self, volumes_det, cluster_id):
