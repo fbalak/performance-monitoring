@@ -63,7 +63,9 @@ class SDSPlugin(object):
 
     def get_clusters_status_wise_counts(self, clusters):
         clusters_status_wise_counts = {
-            'total': 0,
+            'status': {
+                'total': 0
+            },
             'near_full': 0,
             pm_consts.CRITICAL_ALERTS: 0,
             pm_consts.WARNING_ALERTS: 0
@@ -78,13 +80,22 @@ class SDSPlugin(object):
                     'GlobalDetails', {}
                 ).get('status')
                 if cluster_status:
-                    if cluster_status not in clusters_status_wise_counts:
-                        clusters_status_wise_counts[cluster_status] = 1
+                    if (
+                        cluster_status not in
+                            clusters_status_wise_counts['status']
+                    ):
+                        clusters_status_wise_counts['status'][
+                            cluster_status
+                        ] = 1
                     else:
-                        clusters_status_wise_counts[cluster_status] = \
-                            clusters_status_wise_counts[cluster_status] + 1
-                    clusters_status_wise_counts['total'] = \
-                        clusters_status_wise_counts['total'] + 1
+                        clusters_status_wise_counts['status'][
+                            cluster_status
+                        ] = \
+                            clusters_status_wise_counts['status'][
+                                cluster_status
+                        ] + 1
+                    clusters_status_wise_counts['status']['total'] = \
+                        clusters_status_wise_counts['status']['total'] + 1
                 cluster_critical_alerts, cluster_warning_alerts = \
                     parse_resource_alerts(
                         None,
