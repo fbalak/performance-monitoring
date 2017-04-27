@@ -133,7 +133,13 @@ class TimeSeriesDBManager(object):
             pm_consts.SYSTEM_UTILIZATION: '$sds_type{0}utilization{0}'
             '$utilization_type',
             pm_consts.CLUSTER_UTILIZATION: 'cluster_$cluster_id{0}'
-            'cluster_utilization{0}$utilization_type'
+            'cluster_utilization{0}$utilization_type',
+            pm_consts.CLUSTER_THROUGHPUT: 'cluster_$cluster_id{0}'
+            'throughput{0}$network_type{0}$utilization_type',
+            pm_consts.SYSTEM_THROUGHPUT: '$sds_type{0}'
+            'throughput{0}$network_type{0}$utilization_type',
+            pm_consts.NODE_THROUGHPUT: '$node_name{0}'
+            'network_throughput-$network_type{0}$utilization_type'
         }
         if not pattern.get(resource_name):
             raise TendrlPerformanceMonitoringException(

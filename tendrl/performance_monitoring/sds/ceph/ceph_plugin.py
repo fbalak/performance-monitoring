@@ -106,7 +106,9 @@ class CephPlugin(SDSPlugin):
     def get_osd_status_wise_counts(self, cluster_det):
         osd_counts = {
             'total': 0,
-            'down': 0
+            'down': 0,
+            pm_consts.CRITICAL_ALERTS: 0,
+            pm_consts.WARNING_ALERTS: 0
         }
         if 'maps' in cluster_det:
             osds = ast.literal_eval(
@@ -122,11 +124,7 @@ class CephPlugin(SDSPlugin):
                 if 'up' not in osd.get('state'):
                     osd_counts['down'] = osd_counts['down'] + 1
                 osd_counts['total'] = osd_counts['total'] + 1
-        osd_counts[
-            pm_consts.CRITICAL_ALERTS
-        ], osd_counts[
-            pm_consts.WARNING_ALERTS
-        ] = parse_resource_alerts(
+        crit_alerts, warn_alerts = parse_resource_alerts(
             'osd',
             pm_consts.CLUSTER,
             cluster_id=cluster_det.get(
@@ -134,6 +132,12 @@ class CephPlugin(SDSPlugin):
                 {}
             ).get('integration_id', '')
         )
+        osd_counts[
+            pm_consts.CRITICAL_ALERTS
+        ] = len(crit_alerts)
+        osd_counts[
+            pm_consts.WARNING_ALERTS
+        ] = len(warn_alerts)
         return osd_counts
 
     def get_mon_status_wise_counts(self, cluster_det):
@@ -202,8 +206,8 @@ class CephPlugin(SDSPlugin):
 
     def get_system_osd_status_wise_counts(self, cluster_summaries):
         osd_status_wise_counts = {}
-        osd_critical_alerts = []
-        osd_warning_alerts = []
+        osd_critical_alerts = 0
+        osd_warning_alerts = 0
         for cluster_summary in cluster_summaries:
             if self.name in cluster_summary.sds_type:
                 cluster_osd_count = \
@@ -219,16 +223,14 @@ class CephPlugin(SDSPlugin):
                     if isinstance(count, int):
                         osd_status_wise_counts[status] = \
                             osd_status_wise_counts.get(status, 0) + count
-                osd_critical_alerts.extend(
-                    cluster_osd_count.get(
+                osd_critical_alerts = \
+                    osd_critical_alerts + cluster_osd_count.get(
                         pm_consts.CRITICAL_ALERTS
                     )
-                )
-                osd_warning_alerts.extend(
-                    cluster_osd_count.get(
+                osd_warning_alerts = \
+                    osd_warning_alerts + cluster_osd_count.get(
                         pm_consts.WARNING_ALERTS
                     )
-                )
         osd_status_wise_counts[pm_consts.WARNING_ALERTS] = \
             osd_warning_alerts
         osd_status_wise_counts[pm_consts.CRITICAL_ALERTS] = \
