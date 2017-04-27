@@ -120,6 +120,15 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                 pm_consts.USED: 'gauge-used',
                 pm_consts.TOTAL: 'gauge-total',
                 pm_consts.PERCENT_USED: 'percent-percent_bytes',
+            },
+            pm_consts.CLUSTER_THROUGHPUT: {
+                pm_consts.USED: 'gauge-used'
+            },
+            pm_consts.SYSTEM_THROUGHPUT: {
+                pm_consts.USED: 'gauge-used'
+            },
+            pm_consts.NODE_THROUGHPUT: {
+                pm_consts.USED: 'gauge-used'
             }
         }.get(resource_name, {}).get(utilization_type)
 

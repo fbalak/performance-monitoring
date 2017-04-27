@@ -4,7 +4,6 @@ from etcd import EtcdKeyNotFound
 import gevent
 import math
 from pytz import utc
-import re
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -16,6 +15,8 @@ from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
+from tendrl.performance_monitoring.utils import get_latest_stat
+from tendrl.performance_monitoring.utils import get_latest_stats
 
 
 class NodeSummarise(gevent.greenlet.Greenlet):
@@ -23,85 +24,10 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         super(NodeSummarise, self).__init__()
         self._complete = gevent.event.Event()
 
-    ''' Get latest stats of resource as in param resource'''
-    def get_latest_stat(self, node, resource):
-        try:
-            node_name = NS.central_store_thread.get_node_name_from_id(
-                node
-            )
-            stats = NS.time_series_db_manager.get_plugin().get_metric_stats(
-                node_name,
-                resource,
-                'latest'
-            )
-            if stats == "[]" or not stats:
-                raise TendrlPerformanceMonitoringException(
-                    'Stats not yet available in time series db'
-                )
-            stat = re.search('Current:(.+?)Max', stats)
-            if not stat:
-                raise TendrlPerformanceMonitoringException(
-                    'Failed to get latest stat of %s of node %s for summary'
-                    'Error: Current utilization not found' % (
-                        resource,
-                        node
-                    )
-                )
-            stat = re.search('Current:(.+?)Max', stats).group(1)
-            if math.isnan(float(stat)):
-                raise TendrlPerformanceMonitoringException(
-                    'Received nan for utilization %s of %s' % (
-                        resource,
-                        node
-                    )
-                )
-            return float(stat)
-        except TendrlPerformanceMonitoringException as ex:
-            Event(
-                ExceptionMessage(
-                    priority="debug",
-                    publisher=NS.publisher_id,
-                    payload={"message": 'Failed to get latest stat of %s of '
-                                        'node %s for node summary.'
-                                        % (resource, node),
-                             "exception": ex
-                             }
-                )
-            )
-            raise ex
-
-    ''' Get latest stats of resources matching wild cards in param resource'''
-    def get_latest_stats(self, node, resource):
-        try:
-            node_name = NS.central_store_thread.get_node_name_from_id(node)
-            stats = NS.time_series_db_manager.get_plugin().get_metric_stats(
-                node_name,
-                resource,
-                'latest'
-            )
-            if stats == "[]" or not stats:
-                raise TendrlPerformanceMonitoringException(
-                    'Stats not yet available in time series db'
-                )
-            return re.findall('Current:(.+?)Max', stats)
-        except TendrlPerformanceMonitoringException as ex:
-            Event(
-                ExceptionMessage(
-                    priority="debug",
-                    publisher=NS.publisher_id,
-                    payload={"message": 'Failed to get latest stats of %s of '
-                                        'node %s for node summary.'
-                                        % (resource, node),
-                             "exception": ex
-                             }
-                )
-            )
-            raise ex
-
     def get_net_host_cpu_utilization(self, node):
         try:
-            percent_user = self.get_latest_stat(node, 'cpu.percent-user')
-            percent_system = self.get_latest_stat(node, 'cpu.percent-system')
+            percent_user = get_latest_stat(node, 'cpu.percent-user')
+            percent_system = get_latest_stat(node, 'cpu.percent-system')
             return {
                 'percent_used': str(percent_user + percent_system),
                 'updated_at': datetime.datetime.now().isoformat()
@@ -112,9 +38,9 @@ class NodeSummarise(gevent.greenlet.Greenlet):
 
     def get_net_host_memory_utilization(self, node):
         try:
-            used = self.get_latest_stat(node, 'memory.memory-used')
-            total = self.get_latest_stat(node, 'aggregation-memory-sum.memory')
-            percent_used = self.get_latest_stat(node, 'memory.percent-used')
+            used = get_latest_stat(node, 'memory.memory-used')
+            total = get_latest_stat(node, 'aggregation-memory-sum.memory')
+            percent_used = get_latest_stat(node, 'memory.percent-used')
             return {
                 'used': str(used),
                 'percent_used': str(percent_used),
@@ -127,12 +53,12 @@ class NodeSummarise(gevent.greenlet.Greenlet):
 
     def get_net_storage_utilization(self, node):
         try:
-            used_stats = self.get_latest_stats(node, 'df-*.df_complex-used')
+            used_stats = get_latest_stats(node, 'df-*.df_complex-used')
             used = 0.0
             for stat in used_stats:
                 if not math.isnan(float(stat)):
                     used = used + float(stat)
-            free_stats = self.get_latest_stats(node, 'df-*.df_complex-free')
+            free_stats = get_latest_stats(node, 'df-*.df_complex-free')
             free = 0.0
             for stat in free_stats:
                 if not math.isnan(float(stat)):

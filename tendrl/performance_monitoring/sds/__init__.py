@@ -65,11 +65,10 @@ class SDSPlugin(object):
         clusters_status_wise_counts = {
             'total': 0,
             'near_full': 0,
-            pm_consts.CRITICAL_ALERTS: [],
-            pm_consts.WARNING_ALERTS: []
+            pm_consts.CRITICAL_ALERTS: 0,
+            pm_consts.WARNING_ALERTS: 0
         }
-        cluster_critical_alerts = []
-        cluster_warning_alerts = []
+        cluster_alerts = []
         for cluster_id, cluster_det in clusters.iteritems():
             if (
                 self.name in
@@ -92,15 +91,19 @@ class SDSPlugin(object):
                         pm_consts.CLUSTER,
                         cluster_id=cluster_id
                     )
+                cluster_alerts.extend(cluster_critical_alerts)
+                cluster_alerts.extend(cluster_warning_alerts)
                 clusters_status_wise_counts[
                     pm_consts.CRITICAL_ALERTS
-                ].extend(cluster_critical_alerts)
+                ] = clusters_status_wise_counts[
+                    pm_consts.CRITICAL_ALERTS
+                ] + len(cluster_critical_alerts)
                 clusters_status_wise_counts[
                     pm_consts.WARNING_ALERTS
-                ].extend(cluster_warning_alerts)
-        for cluster_alert in clusters_status_wise_counts[
-            pm_consts.CRITICAL_ALERTS
-        ]:
+                ] = clusters_status_wise_counts[
+                    pm_consts.WARNING_ALERTS
+                ] + len(cluster_warning_alerts)
+        for cluster_alert in cluster_alerts:
             if (
                 cluster_alert['severity'] == pm_consts.CRITICAL and
                 cluster_alert['resource'] == 'cluster_utilization'

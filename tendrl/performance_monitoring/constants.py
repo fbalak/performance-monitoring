@@ -12,6 +12,10 @@ WARNING_ALERTS = "warning_alerts"
 CRITICAL_ALERTS = "critical_alerts"
 CLUSTER = 'cluster'
 NODE = 'node'
+THROUGHPUT = "throughput"
+CLUSTER_THROUGHPUT = "cluster_%s" % THROUGHPUT
+SYSTEM_THROUGHPUT = "system_%s" % THROUGHPUT
+NODE_THROUGHPUT = "node_%s" % THROUGHPUT
 SUPPORTED_ALERT_TYPES = [
     "utilization",
     "status"
