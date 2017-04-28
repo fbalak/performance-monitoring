@@ -27,7 +27,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             status_wise_count['total'] = status_wise_count['total'] + 1
             alerts = []
             try:
-                NS.central_store_thread.get_node_alerts(node_id)
+                alerts = NS.central_store_thread.get_node_alerts(node_id)
             except EtcdKeyNotFound:
                 pass
             for alert in alerts:
