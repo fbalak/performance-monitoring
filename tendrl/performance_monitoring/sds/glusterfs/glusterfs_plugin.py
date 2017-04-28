@@ -1,5 +1,4 @@
 import ast
-import json
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
@@ -97,7 +96,6 @@ class GlusterFSPlugin(SDSPlugin):
                 'Bricks',
                 {}
             ).iteritems():
-                brick_det = json.loads(brick_det)
                 if brick_det['status'] == 'Stopped':
                     brick_status_wise_counts['stopped'] = \
                         brick_status_wise_counts['stopped'] + 1
@@ -159,6 +157,28 @@ class GlusterFSPlugin(SDSPlugin):
             ).get('cluster_name', '')
             most_used_volumes.append(vol_det)
         return most_used_volumes[:5]
+
+    def get_most_used_bricks(self, volumes_det):
+        brick_utilizations = []
+        for volume_id, volume_det in volumes_det.iteritems():
+            for brick_path, brick_det in volume_det.get(
+                'Bricks',
+                {}
+            ).iteritems():
+                if (
+                    'utilization' not in brick_det or
+                    not brick_det['utilization']
+                ):
+                    continue
+                brick_det['brick_path'] = brick_path
+                brick_det['vol_name'] = volume_det['name']
+                brick_utilizations.append(brick_det['utilization'])
+        brick_utilizations = sorted(
+            brick_utilizations,
+            key=lambda k: k['used_percent']
+        )
+        brick_utilizations.reverse()
+        return brick_utilizations[:5]
 
     def get_cluster_throughput(self, cluster_nodes, cluster_id):
         throughput = 0.0
@@ -226,7 +246,34 @@ class GlusterFSPlugin(SDSPlugin):
             cluster_det.get('nodes', {}),
             cluster_id
         )
+        ret_val['most_used_bricks'] = self.get_most_used_bricks(
+            cluster_det.get('Volumes', {})
+        )
+        ret_val['connection_active'] = cluster_det.get(
+            'GlobalDetails',
+            {}
+        ).get('connection_active', 0)
+        ret_val['connection_count'] = cluster_det.get(
+            'GlobalDetails',
+            {}
+        ).get('connection_count', 0)
         return ret_val
+
+    def get_system_client_connection_counts(self, cluster_summaries):
+        connection_count = 0
+        connection_active = 0
+        for cluster_summary in cluster_summaries:
+            connection_count = \
+                connection_count + int(cluster_summary.sds_det.get(
+                    'connection_count',
+                    0
+                ))
+            connection_active = \
+                connection_active + int(cluster_summary.sds_det.get(
+                    'connection_active',
+                    0
+                ))
+        return connection_count, connection_active
 
     def get_system_brick_status_wise_counts(self, cluster_summaries):
         brick_status_wise_counts = {}
@@ -259,6 +306,19 @@ class GlusterFSPlugin(SDSPlugin):
         brick_status_wise_counts[pm_consts.CRITICAL_ALERTS] = \
             brick_critical_alerts
         return brick_status_wise_counts
+
+    def get_system_most_used_bricks(self, cluster_summaries):
+        brick_utilizations = []
+        for cluster_summary in cluster_summaries:
+            brick_utilizations.extend(
+                cluster_summary.sds_det['most_used_bricks']
+            )
+        brick_utilizations = sorted(
+            brick_utilizations,
+            key=lambda k: k['used_percent']
+        )
+        brick_utilizations.reverse()
+        return brick_utilizations[:5]
 
     def get_system_volume_status_wise_counts(self, cluster_summaries):
         volume_status_wise_counts = {}
@@ -337,6 +397,8 @@ class GlusterFSPlugin(SDSPlugin):
 
     def compute_system_summary(self, cluster_summaries, clusters):
         try:
+            connection_count, connection_active = \
+                self.get_system_client_connection_counts(cluster_summaries)
             SystemSummary(
                 utilization=self.get_system_utilization(cluster_summaries),
                 hosts_count=self.get_system_host_status_wise_counts(
@@ -356,7 +418,14 @@ class GlusterFSPlugin(SDSPlugin):
                     'brick_counts': self.get_system_brick_status_wise_counts(
                         cluster_summaries
                     ),
-                    'throughput': self.get_system_throughput(cluster_summaries)
+                    'most_used_bricks': self.get_system_most_used_bricks(
+                        cluster_summaries
+                    ),
+                    'throughput': self.get_system_throughput(
+                        cluster_summaries
+                    ),
+                    'connection_count': connection_count,
+                    'connection_active': connection_active
                 },
                 sds_type=self.name
             ).save(update=False)
