@@ -114,10 +114,12 @@ class GlusterFSPlugin(SDSPlugin):
         ] = len(warn_alerts)
         return brick_status_wise_counts
 
-    def get_volume_status_wise_counts(self, volumes_det, cluster_id):
+    def get_volume_status_wise_counts(self, cluster_det, cluster_id):
+        volumes_det = cluster_det.get('Volumes', {})
         volume_status_wise_counts = {
             'down': 0,
             'total': 0,
+            'degraded': 0,
             pm_consts.CRITICAL_ALERTS: 0,
             pm_consts.WARNING_ALERTS: 0
         }
@@ -128,6 +130,12 @@ class GlusterFSPlugin(SDSPlugin):
                     volume_status_wise_counts['down'] + 1
             volume_status_wise_counts['total'] = \
                 volume_status_wise_counts['total'] + 1
+        volume_status_wise_counts['degraded'] = \
+            int(cluster_det.get('GlobalDetails', {}).get(
+                'volume_up_degraded',
+                0
+            )
+        )
         crit_alerts, warn_alerts = parse_resource_alerts(
             'volume',
             pm_consts.CLUSTER,
@@ -231,7 +239,7 @@ class GlusterFSPlugin(SDSPlugin):
         )
         ret_val['volume_status_wise_counts'] = \
             self.get_volume_status_wise_counts(
-                cluster_det.get('Volumes', {}),
+                cluster_det,
                 cluster_id
         )
         ret_val['brick_status_wise_counts'] = \
