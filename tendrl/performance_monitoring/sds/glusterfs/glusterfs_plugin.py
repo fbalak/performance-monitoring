@@ -166,7 +166,7 @@ class GlusterFSPlugin(SDSPlugin):
             most_used_volumes.append(vol_det)
         return most_used_volumes[:5]
 
-    def get_most_used_bricks(self, volumes_det):
+    def get_most_used_bricks(self, volumes_det, cluster_name):
         brick_utilizations = []
         for volume_id, volume_det in volumes_det.iteritems():
             for brick_path, brick_det in volume_det.get(
@@ -178,8 +178,9 @@ class GlusterFSPlugin(SDSPlugin):
                     not brick_det['utilization']
                 ):
                     continue
-                brick_det['brick_path'] = brick_path
-                brick_det['vol_name'] = volume_det['name']
+                brick_det['utilization']['brick_path'] = brick_path
+                brick_det['utilization']['vol_name'] = volume_det['name']
+                brick_det['utilization']['cluster_name'] = cluster_name
                 brick_utilizations.append(brick_det['utilization'])
         brick_utilizations = sorted(
             brick_utilizations,
@@ -255,7 +256,8 @@ class GlusterFSPlugin(SDSPlugin):
             cluster_id
         )
         ret_val['most_used_bricks'] = self.get_most_used_bricks(
-            cluster_det.get('Volumes', {})
+            cluster_det.get('Volumes', {}),
+            cluster_det.get('TendrlContext', {}).get('cluster_name', '')
         )
         ret_val['connection_active'] = cluster_det.get(
             'GlobalDetails',
@@ -271,16 +273,17 @@ class GlusterFSPlugin(SDSPlugin):
         connection_count = 0
         connection_active = 0
         for cluster_summary in cluster_summaries:
-            connection_count = \
-                connection_count + int(cluster_summary.sds_det.get(
-                    'connection_count',
-                    0
-                ))
-            connection_active = \
-                connection_active + int(cluster_summary.sds_det.get(
-                    'connection_active',
-                    0
-                ))
+            if self.name in cluster_summary.sds_type:
+                connection_count = \
+                    connection_count + int(cluster_summary.sds_det.get(
+                        'connection_count',
+                        0
+                    ))
+                connection_active = \
+                    connection_active + int(cluster_summary.sds_det.get(
+                        'connection_active',
+                        0
+                    ))
         return connection_count, connection_active
 
     def get_system_brick_status_wise_counts(self, cluster_summaries):
@@ -318,9 +321,10 @@ class GlusterFSPlugin(SDSPlugin):
     def get_system_most_used_bricks(self, cluster_summaries):
         brick_utilizations = []
         for cluster_summary in cluster_summaries:
-            brick_utilizations.extend(
-                cluster_summary.sds_det['most_used_bricks']
-            )
+            if self.name in cluster_summary.sds_type:
+                brick_utilizations.extend(
+                    cluster_summary.sds_det['most_used_bricks']
+                )
         brick_utilizations = sorted(
             brick_utilizations,
             key=lambda k: k['used_percent']
