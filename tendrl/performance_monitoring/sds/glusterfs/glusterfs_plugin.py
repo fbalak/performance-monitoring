@@ -318,9 +318,10 @@ class GlusterFSPlugin(SDSPlugin):
     def get_system_most_used_bricks(self, cluster_summaries):
         brick_utilizations = []
         for cluster_summary in cluster_summaries:
-            brick_utilizations.extend(
-                cluster_summary.sds_det['most_used_bricks']
-            )
+            if self.name in cluster_summary.sds_type:
+                brick_utilizations.extend(
+                    cluster_summary.sds_det['most_used_bricks']
+                )
         brick_utilizations = sorted(
             brick_utilizations,
             key=lambda k: k['used_percent']
