@@ -93,7 +93,10 @@ class GlusterFSPlugin(SDSPlugin):
             pm_consts.CRITICAL_ALERTS: 0
         }
         for volume_id, volume_det in volumes_det.iteritems():
-            for brick_path, brick_det in volume_det['Bricks'].iteritems():
+            for brick_path, brick_det in volume_det.get(
+                'Bricks',
+                {}
+            ).iteritems():
                 brick_det = json.loads(brick_det)
                 if brick_det['status'] == 'Stopped':
                     brick_status_wise_counts['stopped'] = \
