@@ -1,5 +1,4 @@
 import ast
-
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
@@ -7,6 +6,8 @@ from tendrl.performance_monitoring import constants as \
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
+from tendrl.performance_monitoring.sds.ceph.pg_utils \
+    import _calculate_pg_counters
 from tendrl.performance_monitoring.utils import parse_resource_alerts
 from tendrl.performance_monitoring.utils import read as etcd_read_key
 
@@ -52,20 +53,98 @@ class CephPlugin(SDSPlugin):
                     if node_id not in self.configured_nodes:
                         self.configured_nodes[node_id] = [plugin]
                         is_configured = False
-                    if plugin not in self.configured_nodes[node_id]:
-                        node_plugins = self.configured_nodes[node_id]
+                    if plugin not in self.configured_nodes.get(node_id, []):
+                        node_plugins = self.configured_nodes.get(node_id, [])
                         node_plugins.append(plugin)
                         is_configured = False
                     if not is_configured:
                         plugin_config['cluster_id'] = \
                             sds_tendrl_context['integration_id']
+                        plugin_config['cluster_name'] = \
+                            sds_tendrl_context['cluster_name']
                         configs.append({
                             'plugin': "%s_%s" % (self.name, plugin),
                             'plugin_conf': plugin_config,
                             'node_id': node_id,
                             'fqdn': sds_node_context['fqdn']
                         })
+                is_configured = True
+                if (
+                    "ceph_cluster_iops" not in
+                        self.configured_nodes.get(node_id, [])
+                ):
+                    node_plugins = self.configured_nodes.get(node_id, [])
+                    node_plugins.append(
+                        "ceph_cluster_iops"
+                    )
+                    is_configured = False
+                if not is_configured:
+                    plugin_config['cluster_id'] = \
+                        sds_tendrl_context['integration_id']
+                    plugin_config['cluster_name'] = \
+                        sds_tendrl_context['cluster_name']
+                    configs.append({
+                        'plugin': "ceph_cluster_iops",
+                        'plugin_conf': plugin_config,
+                        'node_id': node_id,
+                        'fqdn': sds_node_context['fqdn']
+                    })
+            is_configured = True
+            if (
+                "ceph_node_network_throughput" not in
+                    self.configured_nodes.get(node_id, [])
+            ):
+                plugin_config['cluster_network'] = ' '.join(
+                    self.get_nw_node_interfaces(
+                        node_id,
+                        'cluster_network',
+                        sds_tendrl_context['integration_id']
+                    )
+                )
+                plugin_config['public_network'] = ' '.join(
+                    self.get_nw_node_interfaces(
+                        node_id,
+                        'public_network',
+                        sds_tendrl_context['integration_id']
+                    )
+                )
+                if (
+                    plugin_config['cluster_network'] and
+                        plugin_config['public_network']
+                ):
+                    node_plugins = self.configured_nodes.get(node_id, [])
+                    node_plugins.append(
+                        "ceph_node_network_throughput"
+                    )
+                    configs.append({
+                        'plugin': "%s_node_network_throughput" % self.name,
+                        'plugin_conf': plugin_config,
+                        'node_id': node_id,
+                        'fqdn': sds_node_context['fqdn']
+                    })
         return configs
+
+    def get_nw_node_interfaces(self, node_id, nw_type, cluster_id):
+        nw_node_interfaces = []
+        try:
+            nw_subnet = etcd_read_key(
+                '/clusters/%s/maps/config/data/%s' % (
+                    cluster_id,
+                    nw_type
+                )
+            )[nw_type]
+            if nw_subnet:
+                nw_subnet = nw_subnet.replace('/', '_')
+                networks = etcd_read_key(
+                    '/networks/%s/%s' % (nw_subnet, node_id)
+                )
+                for interface_id, interface_det in networks.iteritems():
+                    nw_node_interfaces.append(
+                        interface_det.get('interface')
+                    )
+        except Exception:
+            pass
+        return nw_node_interfaces
 
     def get_most_used_pools(self, cluster_det):
         most_used_pools = []
@@ -80,6 +159,44 @@ class CephPlugin(SDSPlugin):
             ).get('sds_name', '')
             most_used_pools.append(pool_det)
         return most_used_pools[:5]
+
+    def get_rbd_status_wise_counts(self, cluster_id):
+        # No status for rbds so currently only alert counters will be available
+        rbd_status_wise_counts = {
+            pm_consts.CRITICAL_ALERTS: 0,
+            pm_consts.WARNING_ALERTS: 0
+        }
+        crit_alerts, warn_alerts = parse_resource_alerts(
+            'rbd',
+            pm_consts.CLUSTER,
+            cluster_id=cluster_id
+        )
+        rbd_status_wise_counts[
+            pm_consts.CRITICAL_ALERTS
+        ] = len(crit_alerts)
+        rbd_status_wise_counts[
+            pm_consts.WARNING_ALERTS
+        ] = len(warn_alerts)
+        return rbd_status_wise_counts
+
+    def get_pool_status_wise_counts(self, cluster_id):
+        # No status for pools, so only alert counters will be available
+        pool_status_wise_counts = {
+            pm_consts.CRITICAL_ALERTS: 0,
+            pm_consts.WARNING_ALERTS: 0
+        }
+        crit_alerts, warn_alerts = parse_resource_alerts(
+            'pool',
+            pm_consts.CLUSTER,
+            cluster_id=cluster_id
+        )
+        pool_status_wise_counts[
+            pm_consts.CRITICAL_ALERTS
+        ] = len(crit_alerts)
+        pool_status_wise_counts[
+            pm_consts.WARNING_ALERTS
+        ] = len(warn_alerts)
+        return pool_status_wise_counts
 
     def get_most_used_rbds(self, cluster_det):
         # Needs to be tested
@@ -169,6 +286,14 @@ class CephPlugin(SDSPlugin):
         )
         return mon_status_wise_counts
 
+    def get_pg_counts(self, cluster_det):
+        pg_summary = cluster_det['maps']['pg_summary']['data']['all']
+        if isinstance(pg_summary, basestring):
+            pg_summary = ast.literal_eval(pg_summary)
+        return _calculate_pg_counters(
+            pg_summary
+        )
+
     def get_cluster_summary(self, cluster_id, cluster_det):
         ret_val = {}
         ret_val['most_used_pools'] = self.get_most_used_pools(
@@ -183,8 +308,84 @@ class CephPlugin(SDSPlugin):
         ret_val['osd_counts'] = self.get_osd_status_wise_counts(
             cluster_det
         )
+        ret_val['rbd_counts'] = self.get_rbd_status_wise_counts(cluster_id)
         ret_val['mon_counts'] = self.get_mon_status_wise_counts(cluster_det)
+        ret_val['pool_counts'] = self.get_pool_status_wise_counts(cluster_id)
+        ret_val['pg_counts'] = self.get_pg_counts(cluster_det)
+        throughput = {}
+        throughput['cluster_network'] = self.get_cluster_throughput(
+            'cluster_network',
+            cluster_det.get('nodes', {}),
+            cluster_id
+        )
+        throughput['public_network'] = self.get_cluster_throughput(
+            'public_network',
+            cluster_det.get('nodes', {}),
+            cluster_id
+        )
+        ret_val['throughput'] = throughput
         return ret_val
+
+    def get_system_throughput(self, cluster_summaries):
+        cluster_throughput = 0.0
+        public_throughput = 0.0
+        cnt = 0
+        for cluster_summary in cluster_summaries:
+            if self.name in cluster_summary.sds_type:
+                cluster_throughput = \
+                    cluster_throughput + cluster_summary.sds_det.get(
+                        'throughput',
+                        {}
+                    ).get('cluster_network')
+                cnt = cnt + 1
+        if cnt > 0:
+            cluster_throughput = (cluster_throughput * 1.0) / (cnt * 1.0)
+        NS.time_series_db_manager.get_plugin().push_metrics(
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                sds_type=self.name,
+                network_type='cluster_network',
+                resource_name=pm_consts.SYSTEM_THROUGHPUT,
+                utilization_type=pm_consts.USED
+            ),
+            cluster_throughput
+        )
+        cnt = 0
+        for cluster_summary in cluster_summaries:
+            if self.name in cluster_summary.sds_type:
+                public_throughput = \
+                    public_throughput + cluster_summary.sds_det.get(
+                        'throughput',
+                        {}
+                    ).get('public_network')
+                cnt = cnt + 1
+        if cnt > 0:
+            public_throughput = (public_throughput * 1.0) / (cnt * 1.0)
+        NS.time_series_db_manager.get_plugin().push_metrics(
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                sds_type=self.name,
+                network_type='public_network',
+                resource_name=pm_consts.SYSTEM_THROUGHPUT,
+                utilization_type=pm_consts.USED
+            ),
+            public_throughput
+        )
+        return {
+            'cluster_network': cluster_throughput,
+            'public_network': public_throughput
+        }
+
+    def get_system_pg_counts(self, cluster_summaries):
+        system_pg_counts = {}
+        for cluster_summary in cluster_summaries:
+            if self.name in cluster_summary.sds_type:
+                cluster_pg_counts = cluster_summary.sds_det.get(
+                    'pg_counts',
+                    {}
+                )
+                for status, counter_map in cluster_pg_counts.iteritems():
+                    counts = system_pg_counts.get('status', 0)
+                    system_pg_counts[status] = counts + counter_map['count']
+        return system_pg_counts
 
     def get_system_mon_status_wise_counts(self, cluster_summaries):
         mon_status_wise_counts = {}
@@ -296,7 +497,9 @@ class CephPlugin(SDSPlugin):
                     ),
                     'most_used_rbds': self.get_system_max_used_rbds(
                         cluster_summaries
-                    )
+                    ),
+                    'pg_counts': self.get_system_pg_counts(cluster_summaries),
+                    'throughput': self.get_system_throughput(cluster_summaries)
                 },
                 sds_type=self.name
             ).save(update=False)

@@ -281,3 +281,10 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def save_systemsummary(self, system_summary):
         NS.etcd_orm.save(system_summary)
+
+    def get_node_names_in_cluster(self, cluster_id):
+        ret_val = []
+        nodes = etcd_read('/clusters/%s/nodes' % cluster_id)
+        for node_id, node_det in nodes.iteritems():
+            ret_val.append(node_det.get('NodeContext', {}).get('fqdn'))
+        return ret_val

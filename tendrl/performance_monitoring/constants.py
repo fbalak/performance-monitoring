@@ -16,6 +16,9 @@ THROUGHPUT = "throughput"
 CLUSTER_THROUGHPUT = "cluster_%s" % THROUGHPUT
 SYSTEM_THROUGHPUT = "system_%s" % THROUGHPUT
 NODE_THROUGHPUT = "node_%s" % THROUGHPUT
+LATENCY = "latency"
+AVERAGE = "average"
+IOPS = 'iops'
 SUPPORTED_ALERT_TYPES = [
     "utilization",
     "status"
