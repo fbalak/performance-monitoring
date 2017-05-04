@@ -1,4 +1,5 @@
 import ast
+import json
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
@@ -91,16 +92,28 @@ class GlusterFSPlugin(SDSPlugin):
             pm_consts.WARNING_ALERTS: 0,
             pm_consts.CRITICAL_ALERTS: 0
         }
-        for volume_id, volume_det in volumes_det.iteritems():
-            for brick_path, brick_det in volume_det.get(
-                'Bricks',
-                {}
-            ).iteritems():
-                if brick_det['status'] == 'Stopped':
-                    brick_status_wise_counts['stopped'] = \
-                        brick_status_wise_counts['stopped'] + 1
-                brick_status_wise_counts['total'] = \
-                    brick_status_wise_counts['total'] + 1
+        try:
+            for volume_id, volume_det in volumes_det.iteritems():
+                for brick_path, brick_det in volume_det.get(
+                    'Bricks',
+                    {}
+                ).iteritems():
+                    if brick_det['status'] == 'Stopped':
+                        brick_status_wise_counts['stopped'] = \
+                            brick_status_wise_counts['stopped'] + 1
+                    brick_status_wise_counts['total'] = \
+                        brick_status_wise_counts['total'] + 1
+        except Exception as ex:
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": "Exception caught computing brick "
+                                        "status wise counts",
+                             "exception": ex
+                             }
+                )
+            )
         crit_alerts, warn_alerts = parse_resource_alerts(
             'brick',
             pm_consts.CLUSTER,
@@ -168,20 +181,32 @@ class GlusterFSPlugin(SDSPlugin):
 
     def get_most_used_bricks(self, volumes_det, cluster_name):
         brick_utilizations = []
-        for volume_id, volume_det in volumes_det.iteritems():
-            for brick_path, brick_det in volume_det.get(
-                'Bricks',
-                {}
-            ).iteritems():
-                if (
-                    'utilization' not in brick_det or
-                    not brick_det['utilization']
-                ):
-                    continue
-                brick_det['utilization']['brick_path'] = brick_path
-                brick_det['utilization']['vol_name'] = volume_det['name']
-                brick_det['utilization']['cluster_name'] = cluster_name
-                brick_utilizations.append(brick_det['utilization'])
+        try:
+            for volume_id, volume_det in volumes_det.iteritems():
+                for brick_path, brick_det in volume_det.get(
+                    'Bricks',
+                    {}
+                ).iteritems():
+                    if (
+                        'utilization' not in brick_det or
+                        not brick_det['utilization']
+                    ):
+                        continue
+                    brick_det['utilization']['brick_path'] = brick_path
+                    brick_det['utilization']['vol_name'] = volume_det['name']
+                    brick_det['utilization']['cluster_name'] = cluster_name
+                    brick_utilizations.append(brick_det['utilization'])
+        except Exception as ex:
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={"message": "Exception caught computing most used "
+                                        "bricks",
+                             "exception": ex
+                             }
+                )
+            )
         brick_utilizations = sorted(
             brick_utilizations,
             key=lambda k: k['used_percent']
@@ -395,7 +420,8 @@ class GlusterFSPlugin(SDSPlugin):
                     'throughput'
                 )
                 cnt = cnt + 1
-        throughput = (throughput * 1.0) / (cnt * 1.0)
+        if cnt > 0:
+            throughput = (throughput * 1.0) / (cnt * 1.0)
         NS.time_series_db_manager.get_plugin().push_metrics(
             NS.time_series_db_manager.get_timeseriesnamefromresource(
                 sds_type=self.name,
