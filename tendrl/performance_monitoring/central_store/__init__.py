@@ -165,7 +165,12 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         try:
             summary = ClusterSummary(
                 cluster_id=cluster_id
-            ).load().to_json()
+            )
+            if not summary.exists():
+                raise TendrlPerformanceMonitoringException(
+                    "No summary found for cluster %s" % cluster_id
+                )
+            summary = summary.load().to_json()
             if '_etcd_cls' in summary:
                     del summary['_etcd_cls']
             if 'value' in summary:
@@ -176,13 +181,18 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
                 del summary['list']
             return summary
         except Exception as ex:
-            TendrlPerformanceMonitoringException(str(ex))
+            raise TendrlPerformanceMonitoringException(str(ex))
 
     def get_system_summary(self, cluster_type):
         try:
             summary = SystemSummary(
                 sds_type=cluster_type
-            ).load().to_json()
+            )
+            if not summary.exists():
+                raise TendrlPerformanceMonitoringException(
+                    "No clusters of type %s found" % cluster_type
+                )
+            summary = summary.load().to_json()
             if '_etcd_cls' in summary:
                     del summary['_etcd_cls']
             if 'value' in summary:
@@ -193,7 +203,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
                 del summary['list']
             return summary
         except Exception as ex:
-            TendrlPerformanceMonitoringException(str(ex))
+            raise TendrlPerformanceMonitoringException(str(ex))
 
     def get_node_summary(self, node_ids=None):
         summary = []

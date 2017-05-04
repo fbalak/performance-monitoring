@@ -72,7 +72,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 'used': int(used),
                 'percent_used': float(percent_used)
             },
-            hosts_count=self.parse_host_count(cluster_det.get('nodes')),
+            hosts_count=self.parse_host_count(cluster_det.get('nodes', {})),
             sds_type=cluster_det.get('TendrlContext', {}).get('sds_name'),
             node_summaries=self.cluster_nodes_summary(
                 cluster_det.get('nodes', {}).keys()
