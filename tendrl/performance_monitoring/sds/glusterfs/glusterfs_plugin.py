@@ -1,17 +1,13 @@
 import ast
-import json
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
     pm_consts
-from tendrl.performance_monitoring.exceptions \
-    import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
 from tendrl.performance_monitoring.utils import parse_resource_alerts
 from tendrl.performance_monitoring.utils import read as etcd_read_key
-from tendrl.performance_monitoring.utils import get_latest_stat
 
 
 class GlusterFSPlugin(SDSPlugin):
@@ -214,50 +210,6 @@ class GlusterFSPlugin(SDSPlugin):
         brick_utilizations.reverse()
         return brick_utilizations[:5]
 
-    def get_cluster_throughput(self, cluster_nodes, cluster_id):
-        throughput = 0.0
-        cnt = 0
-        for node_id, node_det in cluster_nodes.iteritems():
-            try:
-                node_name = node_det.get('NodeContext', {}).get(
-                    'fqdn',
-                    ''
-                )
-                entity_name, metric_name = \
-                    NS.time_series_db_manager.get_timeseriesnamefromresource(
-                        node_name=node_name,
-                        network_type='cluster_network',
-                        resource_name=pm_consts.NODE_THROUGHPUT,
-                        utilization_type=pm_consts.USED
-                    ).split(
-                        "%s%s" % (
-                            node_name,
-                            NS.time_series_db_manager.get_plugin(
-                            ).get_delimeter()
-                        ),
-                        1
-                    )
-                curr_throughput = get_latest_stat(
-                    node_id,
-                    metric_name
-                )
-                throughput = throughput + curr_throughput
-                cnt = cnt + 1
-            except TendrlPerformanceMonitoringException:
-                continue
-        if cnt > 0:
-            throughput = (throughput * 1.0) / (cnt * 1.0)
-        NS.time_series_db_manager.get_plugin().push_metrics(
-            NS.time_series_db_manager.get_timeseriesnamefromresource(
-                cluster_id=cluster_id,
-                network_type='cluster_network',
-                resource_name=pm_consts.CLUSTER_THROUGHPUT,
-                utilization_type=pm_consts.USED
-            ),
-            throughput
-        )
-        return throughput
-
     def get_cluster_summary(self, cluster_id, cluster_det):
         ret_val = {}
         ret_val['services_count'] = self.get_services_count(
@@ -277,6 +229,7 @@ class GlusterFSPlugin(SDSPlugin):
             cluster_det
         )
         ret_val['throughput'] = self.get_cluster_throughput(
+            'cluster_network',
             cluster_det.get('nodes', {}),
             cluster_id
         )
