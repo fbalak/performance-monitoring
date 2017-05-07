@@ -1,6 +1,7 @@
 import ast
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
+from tendrl.commons.message import Message
 from tendrl.performance_monitoring import constants as \
     pm_consts
 from tendrl.performance_monitoring.objects.system_summary \
@@ -397,7 +398,7 @@ class GlusterFSPlugin(SDSPlugin):
                 ),
                 cluster_count=self.get_clusters_status_wise_counts(clusters),
                 sds_det={
-                    'volume_counts': self.get_system_volume_status_wise_counts(
+                    'volume_status_wise_counts': self.get_system_volume_status_wise_counts(
                         cluster_summaries
                     ),
                     'most_used_volumes': self.get_system_max_used_volumes(
@@ -406,7 +407,7 @@ class GlusterFSPlugin(SDSPlugin):
                     'services_count': self.get_system_services_count(
                         cluster_summaries
                     ),
-                    'brick_counts': self.get_system_brick_status_wise_counts(
+                    'brick_status_wise_counts': self.get_system_brick_status_wise_counts(
                         cluster_summaries
                     ),
                     'most_used_bricks': self.get_system_most_used_bricks(
@@ -431,3 +432,68 @@ class GlusterFSPlugin(SDSPlugin):
                              }
                 )
             )
+
+    def get_node_brick_status_counts(self, node_id):
+        node_name = NS.central_store_thread.get_node_name_from_id(node_id)
+        brick_status_wise_counts = {
+            'stopped': 0,
+            'total': 0,
+            pm_consts.WARNING_ALERTS: 0,
+            pm_consts.CRITICAL_ALERTS: 0
+        }
+        try:
+            cluster_id = NS.central_store_thread.get_node_cluster_id(
+                node_id
+            )
+            if cluster_id:
+                cluster = etcd_read_key('/clusters/%s' % cluster_id)
+                if cluster:
+                    volumes_det = cluster.get('Volumes', {})
+                    for volume_id, volume_det in volumes_det.iteritems():
+                        for brick_path, brick_det in volume_det.get(
+                            'Bricks',
+                            {}
+                        ).iteritems():
+                            if brick_det['hostname'] == node_name:
+                                if brick_det['status'] == 'Stopped':
+                                    brick_status_wise_counts['stopped'] = \
+                                        brick_status_wise_counts['stopped'] + 1
+                                brick_status_wise_counts['total'] = \
+                                    brick_status_wise_counts['total'] + 1
+            crit_alerts, warn_alerts = parse_resource_alerts(
+                'brick',
+                pm_consts.CLUSTER,
+                cluster_id=cluster_id
+            )
+            count = 0
+            for alert in crit_alerts:
+                if alert['node_id'] == node_id:
+                    count = count + 1
+            brick_status_wise_counts[
+                pm_consts.CRITICAL_ALERTS
+            ] = count
+            count = 0
+            for alert in warn_alerts:
+                if alert['node_id'] == node_id:
+                    count = count + 1
+            brick_status_wise_counts[
+                pm_consts.WARNING_ALERTS
+            ] = count
+        except Exception as ex:
+            Event(
+                Message(
+                    priority="info",
+                    publisher=NS.publisher_id,
+                    payload={"message": "Exception caught fetching node brick"
+                                        " status wise counts",
+                             "exception": ex
+                             }
+                )
+            )
+        return brick_status_wise_counts
+
+    def get_node_summary(self, node_id):
+        ret_val = {}
+        ret_val['services'] = self.get_node_services_count(node_id)
+        ret_val['bricks'] = self.get_node_brick_status_counts(node_id)
+        return ret_val

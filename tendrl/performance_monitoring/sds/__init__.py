@@ -194,6 +194,10 @@ class SDSPlugin(object):
                         status_wise_count.get(status, 0) + int(counter)
         return status_wise_count
 
+    def get_node_services_count(self, node_id):
+        services = etcd_read_key('nodes/%s/Service' % node_id)
+        return services
+
     def get_services_count(self, cluster_det):
         node_service_counts = {}
         for node_id, node_det in cluster_det.get('nodes', {}).iteritems():
@@ -279,6 +283,11 @@ class SDSPlugin(object):
         )
         return throughput
 
+    def get_node_summary(self, node_id):
+        raise NotImplementedError(
+            "The plugins overriding SDSPlugin should mandatorily override this"
+        )
+
 
 class SDSMonitoringManager(object):
     def load_sds_plugins(self):
@@ -341,3 +350,12 @@ class SDSMonitoringManager(object):
             )
         )
         return None
+
+    def get_node_summary(self, node_id):
+        ret_val = {}
+        sds_name = NS.central_store_thread.get_node_sds_name(node_id)
+        if sds_name == "":
+            return ret_val
+        for plugin in SDSPlugin.plugins:
+            if plugin.name == sds_name:
+                return plugin.get_node_summary(node_id)

@@ -2,7 +2,9 @@ import ast
 import gevent
 from gevent import socket
 import re
+from string import Template
 import time
+import urllib
 import urllib3
 
 from tendrl.commons.event import Event
@@ -115,6 +117,53 @@ class GraphitePlugin(TimeSeriesDBPlugin):
             )
             raise TendrlPerformanceMonitoringException(str(ex))
 
+    def get_node_disk_iops_stats(self, node_id):
+        node_name = NS.central_store_thread.get_node_name_from_id(
+            node_id
+        )
+        node_name = node_name.replace('.', '_')
+        target = Template(
+            'sumSeries(averageSeries($prefix.$node_name.disk-*.disk_ops.write'
+            '), averageSeries($prefix.$node_name.disk-*.disk_ops.read))'
+        ).substitute(
+            prefix=self.prefix,
+            node_name=node_name,
+        )
+        target = urllib.quote(target)
+        url = 'http://%s:%s/render?target=%s&format=json' % (
+            self.host,
+            str(self.port),
+            target
+        )
+        try:
+            stats = self.http.request('GET', url, timeout=5)
+            if stats.status == 200:
+                # TODO(Anmol): remove nulls from graphite data before returning
+                # data. Explore the possibility of achieving this using some
+                # tuning factor in graphite.
+                data = re.sub('\[null, [0-9]+\], ', '', stats.data)
+                data = re.sub(', \[null, [0-9]+\]', '', data)
+                return data
+            else:
+                TendrlPerformanceMonitoringException(
+                    'Request status code: %s' % str(
+                        stats.status
+                    )
+                )
+        except (ValueError, Exception) as ex:
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Failed to fetch %s stats using url %s'
+                        '. Error %s' % (target, url),
+                        "exception": ex
+                    }
+                )
+            )
+            raise TendrlPerformanceMonitoringException(str(ex))
+
     def get_metrics(self, entity_name):
         url = 'http://%s:%s/metrics/index.json' % (self.host, str(self.port))
         try:
@@ -179,6 +228,19 @@ class GraphitePlugin(TimeSeriesDBPlugin):
             },
             pm_consts.IOPS: {
                 pm_consts.TOTAL: 'gauge-total'
+            },
+            pm_consts.SWAP: {
+                pm_consts.USED: 'swap-used',
+                pm_consts.PERCENT_USED: 'percent-used'
+            },
+            pm_consts.SWAP_TOTAL: {
+                pm_consts.TOTAL: 'aggregation-swap-sum.swap',
+            },
+            pm_consts.CPU: {
+                pm_consts.PERCENT_USED: 'percent-used'
+            },
+            pm_consts.STORAGE: {
+                pm_consts.PERCENT_USED: 'percent-used'
             }
         }.get(resource_name, {}).get(utilization_type)
 

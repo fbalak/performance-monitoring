@@ -67,16 +67,7 @@ def _calculate_pg_counters(pgs_by_state):
                 if state not in all_states or state in CRIT_STATES:
                     crit[1][state] += count
     return {
-        'ok': {
-            'count': ok[0],
-            'states': dict(ok[1]),
-        },
-        'warn': {
-            'count': warn[0],
-            'states': dict(warn[1]),
-        },
-        'critical': {
-            'count': crit[0],
-            'states': dict(crit[1]),
-        },
+        'ok': ok[0],
+        'warn': warn[0],
+        'critical': crit[0],
     }

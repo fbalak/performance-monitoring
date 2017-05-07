@@ -13,7 +13,10 @@ class NodeSummary(BaseObject):
         cpu_usage=None,
         memory_usage=None,
         storage_usage=None,
+        swap_usage=None,
         alert_count=None,
+        sds_det=None,
+        selinux_mode='',
         *args,
         **kwargs
     ):
@@ -27,10 +30,14 @@ class NodeSummary(BaseObject):
             self.memory_usage = memory_usage
         if storage_usage is not None:
             self.storage_usage = storage_usage
+        if swap_usage is not None:
+            self.swap_usage = swap_usage
         self.name = name
         self.status = status
         self.role = role
         self.cluster_name = cluster_name
+        self.selinux_mode = selinux_mode
+        self.sds_det = sds_det
         self.alert_count = alert_count
 
     def to_json(self):
