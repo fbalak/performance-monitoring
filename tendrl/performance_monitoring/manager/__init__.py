@@ -6,6 +6,7 @@ import json
 import multiprocessing
 import os
 import signal
+import socket
 from uuid import UUID
 from tendrl.commons.config import ConfigNotFound
 from tendrl.commons.event import Event
@@ -79,6 +80,66 @@ def get_clusterutilization(cluster_id, utiliation_type):
             NS.time_series_db_manager.\
             get_plugin().\
             get_metric_stats(entity_name, metric_name),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        ValueError,
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        SyntaxError,
+        etcd.EtcdException,
+        TypeError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
+        return Response(str(ex), status=500, mimetype='application/json')
+
+
+@app.route("/monitoring/clusters/<cluster_id>/latency/stats")
+def get_cluster_latency(cluster_id):
+    try:
+        nodes_in_cluster = NS.central_store_thread.get_node_names_in_cluster(
+            cluster_id
+        )
+        metric_name = NS.time_series_db_manager.get_timeseriesnamefromresource(
+            resource_name=pm_consts.LATENCY,
+            underscored_monitoring_node_name=socket.getfqdn().replace('.', '_')
+        )
+        return Response(
+            NS.time_series_db_manager.get_plugin().get_aggregated_stats(
+                pm_consts.AVERAGE,
+                nodes_in_cluster,
+                metric_name
+            ),
+            status=200,
+            mimetype='application/json'
+        )
+    except Exception as ex:
+        return Response(str(ex), status=500, mimetype='application/json')
+
+
+@app.route(
+    "/monitoring/clusters/<cluster_id>/iops/stats"
+)
+def get_cluster_iops(cluster_id):
+    try:
+        entity_name, metric_name = NS.time_series_db_manager.\
+            get_timeseriesnamefromresource(
+                cluster_id=cluster_id,
+                resource_name=pm_consts.IOPS,
+                utilization_type=pm_consts.TOTAL
+            ).split(
+                NS.time_series_db_manager.get_plugin().get_delimeter(),
+                1
+            )
+        # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
+        # with EtcdKeyNotFound if cluster if is invalid
+        NS.etcd_orm.client.read('/clusters/%s' % cluster_id)
+        return Response(
+            NS.time_series_db_manager.get_plugin().get_metric_stats(
+                entity_name,
+                metric_name
+            ),
             status=200,
             mimetype='application/json'
         )

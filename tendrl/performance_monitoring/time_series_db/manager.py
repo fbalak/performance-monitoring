@@ -65,6 +65,15 @@ class TimeSeriesDBPlugin(object):
     def get_delimeter(self):
         raise NotImplementedError()
 
+    @abstractmethod
+    def get_aggregated_stats(
+        self,
+        aggregation_type,
+        entity_names,
+        metric_name
+    ):
+        raise NotImplementedError()
+
 
 class TimeSeriesDBManager(object):
 
@@ -125,10 +134,11 @@ class TimeSeriesDBManager(object):
         # specific move it from here to respecive TimeSeriesDBPlugin
         delimeter = self.get_plugin().get_delimeter()
         resource_name = kwargs['resource_name']
-        kwargs['utilization_type'] = self.get_plugin().get_utilizationtype(
-            resource_name,
-            kwargs['utilization_type']
-        )
+        if 'utilization_type' in kwargs:
+            kwargs['utilization_type'] = self.get_plugin().get_utilizationtype(
+                resource_name,
+                kwargs['utilization_type']
+            )
         pattern = {
             pm_consts.SYSTEM_UTILIZATION: '$sds_type{0}utilization{0}'
             '$utilization_type',
@@ -139,7 +149,10 @@ class TimeSeriesDBManager(object):
             pm_consts.SYSTEM_THROUGHPUT: '$sds_type{0}'
             'throughput{0}$network_type{0}$utilization_type',
             pm_consts.NODE_THROUGHPUT: '$node_name{0}'
-            'network_throughput-$network_type{0}$utilization_type'
+            'network_throughput-$network_type{0}$utilization_type',
+            pm_consts.LATENCY: 'ping{0}ping-$underscored_monitoring_node_name',
+            pm_consts.IOPS: 'cluster_$cluster_id{0}cluster_iops_read_write{0}'
+            '$utilization_type'
         }
         if not pattern.get(resource_name):
             raise TendrlPerformanceMonitoringException(
