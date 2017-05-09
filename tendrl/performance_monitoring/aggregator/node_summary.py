@@ -63,30 +63,36 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             return None
 
     def get_net_host_swap_utilization(self, node):
-        metric_name = \
-            NS.time_series_db_manager.get_timeseriesnamefromresource(
-                resource_name=pm_consts.SWAP,
-                utilization_type=pm_consts.USED
-            )
-        used = get_latest_stat(node, metric_name)
-        metric_name = \
-            NS.time_series_db_manager.get_timeseriesnamefromresource(
-                resource_name=pm_consts.SWAP_TOTAL,
-                utilization_type=pm_consts.TOTAL
-            )
-        total = get_latest_stat(node, metric_name)
-        metric_name = \
-            NS.time_series_db_manager.get_timeseriesnamefromresource(
-                resource_name=pm_consts.SWAP,
-                utilization_type=pm_consts.PERCENT_USED
-            )
-        percent_used = get_latest_stat(node, metric_name)
-        return {
-            'used': str(used),
-            'percent_used': str(percent_used),
-            'total': str(total),
-            'updated_at': datetime.datetime.now().isoformat()
-        }
+        try:
+            metric_name = \
+                NS.time_series_db_manager.get_timeseriesnamefromresource(
+                    resource_name=pm_consts.SWAP,
+                    utilization_type=pm_consts.USED
+                )
+            used = get_latest_stat(node, metric_name)
+            metric_name = \
+                NS.time_series_db_manager.get_timeseriesnamefromresource(
+                    resource_name=pm_consts.SWAP_TOTAL,
+                    utilization_type=pm_consts.TOTAL
+                )
+            total = get_latest_stat(node, metric_name)
+            metric_name = \
+                NS.time_series_db_manager.get_timeseriesnamefromresource(
+                    resource_name=pm_consts.SWAP,
+                    utilization_type=pm_consts.PERCENT_USED
+                )
+            percent_used = get_latest_stat(node, metric_name)
+            return {
+                'used': str(used),
+                'percent_used': str(percent_used),
+                'total': str(total),
+                'updated_at': datetime.datetime.now().isoformat()
+            }
+        except TendrlPerformanceMonitoringException:
+            # No need to log this exception as it is logged in generic function
+            # but need to return None to indeicate failure to fetch instead of
+            # dummy 0
+            return None
 
     def get_net_storage_utilization(self, node):
         try:
