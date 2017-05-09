@@ -19,6 +19,10 @@ NODE_THROUGHPUT = "node_%s" % THROUGHPUT
 LATENCY = "latency"
 AVERAGE = "average"
 IOPS = 'iops'
+SWAP = "swap"
+SWAP_TOTAL = "swap_aggregated"
+CPU = "cpu"
+STORAGE = "storage"
 SUPPORTED_ALERT_TYPES = [
     "utilization",
     "status"

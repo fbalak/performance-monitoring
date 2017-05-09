@@ -28,6 +28,17 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         try:
             percent_user = get_latest_stat(node, 'cpu.percent-user')
             percent_system = get_latest_stat(node, 'cpu.percent-system')
+            node_name = NS.central_store_thread.get_node_name_from_id(
+                node
+            )
+            NS.time_series_db_manager.get_plugin().push_metrics(
+                NS.time_series_db_manager.get_timeseriesnamefromresource(
+                    underscored_node_name=node_name.replace('.', '_'),
+                    resource_name=pm_consts.CPU,
+                    utilization_type=pm_consts.PERCENT_USED
+                ),
+                percent_user + percent_system
+            )
             return {
                 'percent_used': str(percent_user + percent_system),
                 'updated_at': datetime.datetime.now().isoformat()
@@ -51,6 +62,32 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             # Exception already handled
             return None
 
+    def get_net_host_swap_utilization(self, node):
+        metric_name = \
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                resource_name=pm_consts.SWAP,
+                utilization_type=pm_consts.USED
+            )
+        used = get_latest_stat(node, metric_name)
+        metric_name = \
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                resource_name=pm_consts.SWAP_TOTAL,
+                utilization_type=pm_consts.TOTAL
+            )
+        total = get_latest_stat(node, metric_name)
+        metric_name = \
+            NS.time_series_db_manager.get_timeseriesnamefromresource(
+                resource_name=pm_consts.SWAP,
+                utilization_type=pm_consts.PERCENT_USED
+            )
+        percent_used = get_latest_stat(node, metric_name)
+        return {
+            'used': str(used),
+            'percent_used': str(percent_used),
+            'total': str(total),
+            'updated_at': datetime.datetime.now().isoformat()
+        }
+
     def get_net_storage_utilization(self, node):
         try:
             used_stats = get_latest_stats(node, 'df-*.df_complex-used')
@@ -66,6 +103,17 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             if free + used == 0:
                 return None
             percent_used = float(used * 100) / float(free + used)
+            node_name = NS.central_store_thread.get_node_name_from_id(
+                node
+            )
+            NS.time_series_db_manager.get_plugin().push_metrics(
+                NS.time_series_db_manager.get_timeseriesnamefromresource(
+                    underscored_node_name=node_name.replace('.', '_'),
+                    resource_name=pm_consts.STORAGE,
+                    utilization_type=pm_consts.PERCENT_USED
+                ),
+                percent_used
+            )
             return {
                 'used': str(used),
                 'total': str(used + free),
@@ -88,7 +136,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         cpu_usage = self.get_net_host_cpu_utilization(node)
         memory_usage = self.get_net_host_memory_utilization(node)
         storage_usage = self.get_net_storage_utilization(node)
+        swap_usage = self.get_net_host_swap_utilization(node)
         alert_count = self.get_alert_count(node)
+        sds_det = NS.sds_monitoring_manager.get_node_summary(
+            node
+        )
         old_summary = NodeSummary(
             node_id=node,
             name='',
@@ -111,6 +163,13 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'used': '',
                 'updated_at': ''
             },
+            swap_usage={
+                'percent_used': '',
+                'updated_at': '',
+                'used': '',
+                'total': ''
+            },
+            sds_det={},
             alert_count=alert_count
         )
         try:
@@ -135,6 +194,8 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             memory_usage = old_summary.memory_usage
         if storage_usage is None:
             storage_usage = old_summary.storage_usage
+        if swap_usage is None:
+            swap_usage = old_summary.swap_usage
         try:
             summary = NodeSummary(
                 name=NS.central_store_thread.get_node_name_from_id(node),
@@ -147,6 +208,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 cpu_usage=cpu_usage,
                 memory_usage=memory_usage,
                 storage_usage=storage_usage,
+                swap_usage=swap_usage,
+                selinux_mode=NS.central_store_thread.get_node_selinux_mode(
+                    node
+                ),
+                sds_det=sds_det,
                 alert_count=alert_count
             )
             summary.save(update=False)

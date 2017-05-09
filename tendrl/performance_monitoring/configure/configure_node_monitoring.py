@@ -80,6 +80,19 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                 }
             }
         )
+        initiate_config_generation(
+            {
+                'node_id': node_det['node_id'],
+                'fqdn': node_det['fqdn'],
+                'plugin': 'disk',
+                'plugin_conf': {
+                    'master_name': NS.performance_monitoring.config.data[
+                        'master_name'],
+                    'interval': NS.performance_monitoring.config.data[
+                        'interval']
+                }
+            }
+        )
         config = NS.performance_monitoring.config.data['thresholds']
         if isinstance(config, basestring):
             config = ast.literal_eval(config.encode('ascii', 'ignore'))

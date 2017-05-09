@@ -391,6 +391,28 @@ def get_node_summary():
         )
 
 
+@app.route("/monitoring/nodes/<node_id>/iops/stats")
+def get_nodeiopsstats(node_id):
+    try:
+        return Response(
+            NS.time_series_db_manager.\
+            get_plugin().\
+            get_node_disk_iops_stats(node_id),
+            status=200,
+            mimetype='application/json'
+        )
+    except (
+        ValueError,
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        SyntaxError,
+        etcd.EtcdException,
+        TypeError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
+        return Response(str(ex), status=500, mimetype='application/json')
+
+
 class TendrlPerformanceManager(object):
 
     def __init__(self):

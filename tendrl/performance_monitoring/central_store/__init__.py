@@ -259,6 +259,11 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         except EtcdConnectionFailed as ex:
             raise TendrlPerformanceMonitoringException(str(ex))
 
+    def get_node_selinux_mode(self, node_id):
+        return NS.etcd_orm.client.read(
+            'nodes/%s/Os/selinux_mode' % node_id
+        ).value
+
     def save_nodesummary(self, node_summary):
         NS.etcd_orm.save(node_summary)
 
@@ -275,6 +280,26 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             return cluster_nodes
         except EtcdKeyNotFound:
             return cluster_nodes
+
+    def get_node_sds_name(self, node_id):
+        sds_name = ''
+        try:
+            sds_name = NS.etcd_orm.client.read(
+                '/nodes/%s/TendrlContext/sds_name' % node_id
+            ).value
+        except (EtcdKeyNotFound, EtcdException):
+            pass
+        return sds_name
+
+    def get_node_cluster_id(self, node_id):
+        cluster_id = ''
+        try:
+            cluster_id = NS.etcd_orm.client.read(
+                '/nodes/%s/TendrlContext/integration_id' % node_id
+            ).value
+        except (EtcdKeyNotFound, EtcdException):
+            pass
+        return cluster_id
 
     def save_clustersummary(self, cluster_summary):
         NS.etcd_orm.save(cluster_summary)
