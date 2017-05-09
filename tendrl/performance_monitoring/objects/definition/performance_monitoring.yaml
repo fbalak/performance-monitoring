@@ -19,6 +19,12 @@ namespace.performance_monitoring:
           type: Dict
         storage_usage:
           type: Dict
+        swap_usage:
+          type: Dict
+        selinux_mode:
+          type: String
+        sds_det:
+          type: Dict
         alert_count:
           type: int
       enabled: true

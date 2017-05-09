@@ -74,6 +74,10 @@ class TimeSeriesDBPlugin(object):
     ):
         raise NotImplementedError()
 
+    @abstractmethod
+    def get_node_disk_iops_stats(self, node_id):
+        raise NotImplementedError()
+
 
 class TimeSeriesDBManager(object):
 
@@ -152,6 +156,12 @@ class TimeSeriesDBManager(object):
             'network_throughput-$network_type{0}$utilization_type',
             pm_consts.LATENCY: 'ping{0}ping-$underscored_monitoring_node_name',
             pm_consts.IOPS: 'cluster_$cluster_id{0}cluster_iops_read_write{0}'
+            '$utilization_type',
+            pm_consts.SWAP: 'swap{0}$utilization_type',
+            pm_consts.SWAP_TOTAL: '$utilization_type',
+            pm_consts.CPU: '$underscored_node_name{0}cpu{0}cpu_system_user{0}'
+            '$utilization_type',
+            pm_consts.STORAGE: '$underscored_node_name{0}storage{0}'
             '$utilization_type'
         }
         if not pattern.get(resource_name):
