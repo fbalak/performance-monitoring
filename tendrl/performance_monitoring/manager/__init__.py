@@ -75,7 +75,7 @@ def get_clusterutilization(cluster_id, utiliation_type):
         )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS.etcd_orm.client.read('/clusters/%s' % cluster_id)
+        NS._int.client.read('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
@@ -134,7 +134,7 @@ def get_cluster_iops(cluster_id):
             )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS.etcd_orm.client.read('/clusters/%s' % cluster_id)
+        NS._int.client.read('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.get_plugin().get_metric_stats(
                 entity_name,
@@ -172,7 +172,7 @@ def get_clusterthroughput(cluster_id, network_type):
         )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS.etcd_orm.client.read('/clusters/%s' % cluster_id)
+        NS._int.client.read('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
@@ -456,6 +456,8 @@ class TendrlPerformanceManager(object):
             self.stop()
 
     def stop(self):
+        # TODO (anmolB) central_store_thread is deprecated, move methods
+        # inside it to respective utils
         NS.central_store_thread.stop()
         self.configure_cluster_monitoring.stop()
         self.configure_node_monitoring.stop()
