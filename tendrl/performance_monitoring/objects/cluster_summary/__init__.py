@@ -1,9 +1,8 @@
 import json
-from tendrl.commons.etcdobj import EtcdObj
-from tendrl.commons.objects import BaseObject
+from tendrl.commons import objects
 
 
-class ClusterSummary(BaseObject):
+class ClusterSummary(objects.BaseObject):
     def __init__(self,
                  utilization={'': ''},
                  hosts_count={'': ''},
@@ -24,10 +23,10 @@ class ClusterSummary(BaseObject):
         self.node_summaries = node_summaries
         self.sds_det = sds_det
         self.sds_type = sds_type
-        self.value = 'monitoring/summary/clusters/%s' % self.cluster_id
-        self._etcd_cls = _ClusterSummaryEtcd
+        self.value = 'monitoring/summary/clusters/{0}'
 
     def to_json(self):
+        # TODO (anmolB) Use self.json instead of this method
         return self.__dict__
 
     def save(self, update=False):
@@ -58,14 +57,6 @@ class ClusterSummary(BaseObject):
             cluster_id=self.cluster_id
         )
 
-
-class _ClusterSummaryEtcd(EtcdObj):
-    """A table of the node context, lazily updated
-
-    """
-    __name__ = 'monitoring/summary/clusters/%s'
-    _tendrl_cls = ClusterSummary
-
     def render(self):
-        self.__name__ = self.__name__ % self.cluster_id
-        return super(_ClusterSummaryEtcd, self).render()
+        self.value = self.value.format(self.cluster_id)
+        return super(ClusterSummary, self).render()
