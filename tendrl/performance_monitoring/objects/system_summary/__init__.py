@@ -1,9 +1,9 @@
 import json
-from tendrl.commons.etcdobj import EtcdObj
-from tendrl.commons.objects import BaseObject
+
+from tendrl.commons import objects
 
 
-class SystemSummary(BaseObject):
+class SystemSummary(objects.BaseObject):
     def __init__(self,
                  cluster_count={'': ''},
                  utilization={'': ''},
@@ -22,10 +22,10 @@ class SystemSummary(BaseObject):
         self.hosts_count = hosts_count
         self.sds_det = sds_det
         self.sds_type = sds_type
-        self.value = 'monitoring/summary/system/%s' % self.sds_type
-        self._etcd_cls = _SystemSummaryEtcd
+        self.value = 'monitoring/summary/system/{0}'
 
     def to_json(self):
+        # TODO (anmolB) use self.json instead of this method
         return self.__dict__
 
     def save(self, update=False):
@@ -45,14 +45,6 @@ class SystemSummary(BaseObject):
         summary.hosts_count = json.loads(summary.hosts_count[''])
         return summary
 
-
-class _SystemSummaryEtcd(EtcdObj):
-    """A table of the node context, lazily updated
-
-    """
-    __name__ = 'monitoring/summary/system/%s'
-    _tendrl_cls = SystemSummary
-
     def render(self):
-        self.__name__ = self.__name__ % self.sds_type
-        return super(_SystemSummaryEtcd, self).render()
+        self.value = self.value.format(self.sds_type)
+        return super(SystemSummary, self).render()

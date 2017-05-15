@@ -10,7 +10,7 @@ class ConfigureClusterMonitoring(gevent.greenlet.Greenlet):
     def get_cluster_ids(self):
         cluster_ids = []
         try:
-            clusters = NS.etcd_orm.client.read(
+            clusters = NS._int.client.read(
                 '/clusters'
             )
             for cluster in clusters.leaves:

@@ -17,15 +17,11 @@ from tendrl.performance_monitoring.objects.system_summary \
 from tendrl.performance_monitoring.utils import read as etcd_read
 
 
+# TODO WARNING (anmolB) central_store.EtcdCentralStore will be deprecated,
+# please convert methods in this class to utility functions
 class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def __init__(self):
         super(PerformanceMonitoringEtcdCentralStore, self).__init__()
-
-    def save_config(self, config):
-        NS.etcd_orm.save(config)
-
-    def save_definition(self, definition):
-        NS.etcd_orm.save(definition)
 
     def get_configs(self):
         # TODO(Anmol) : Attempt reading:
@@ -34,7 +30,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
         #  /_tendrl/config/performance_monitoring
         try:
             configs = ''
-            conf = NS.etcd_orm.client.read(
+            conf = NS._int.client.read(
                 '_NS/performance_monitoring/config'
             )
             configs = conf.value
@@ -55,7 +51,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def get_node_last_seen_at(self, node_id):
         try:
-            return NS.etcd_orm.client.read(
+            return NS._int.client.read(
                 '/monitoring/nodes/%s/last_seen_at' % node_id
             ).value
         except Exception:
@@ -64,7 +60,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_node_name_from_id(self, node_id):
         try:
             node_name_path = '/nodes/%s/NodeContext/fqdn' % node_id
-            return NS.etcd_orm.client.read(node_name_path).value
+            return NS._int.client.read(node_name_path).value
         except (
             EtcdKeyNotFound,
             EtcdConnectionFailed,
@@ -77,7 +73,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def get_node_role(self, node_id):
         try:
-            return NS.etcd_orm.client.read(
+            return NS._int.client.read(
                 '/nodes/%s/NodeContext/tags' % node_id
             ).value
         except Exception as ex:
@@ -90,7 +86,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
 
     def get_node_cluster_name(self, node_id):
         try:
-            return NS.etcd_orm.client.read(
+            return NS._int.client.read(
                 '/nodes/%s/TendrlContext/cluster_name' % node_id
             ).value
         except Exception as ex:
@@ -104,7 +100,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_node_ids(self):
         try:
             node_ids = []
-            nodes_etcd = NS.etcd_orm.client.read('/nodes')
+            nodes_etcd = NS._int.client.read('/nodes')
             for node in nodes_etcd.leaves:
                 node_key_contents = node.key.split('/')
                 if len(node_key_contents) == 3:
@@ -123,7 +119,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_node_alert_ids(self, node_id=None):
         alert_ids = []
         try:
-            alerts = NS.etcd_orm.client.read(
+            alerts = NS._int.client.read(
                 '/alerting/nodes/%s' % node_id
             )
             for alert in alerts.leaves:
@@ -241,14 +237,14 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_nodes_details(self):
         nodes_dets = []
         try:
-            nodes = NS.etcd_orm.client.read('/nodes/')
+            nodes = NS._int.client.read('/nodes/')
             for node in nodes.leaves:
                 if node.key.startswith('/nodes/'):
                     node_id = (
                         node.key.split('/')[2]
                     ).encode('ascii', 'ignore')
                     fqdn = (
-                        NS.etcd_orm.client.read(
+                        NS._int.client.read(
                             '/nodes/%s/NodeContext/fqdn' % (node_id)
                         ).value
                     ).encode('ascii', 'ignore')
@@ -260,17 +256,14 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
             raise TendrlPerformanceMonitoringException(str(ex))
 
     def get_node_selinux_mode(self, node_id):
-        return NS.etcd_orm.client.read(
+        return NS._int.client.read(
             'nodes/%s/Os/selinux_mode' % node_id
         ).value
-
-    def save_nodesummary(self, node_summary):
-        NS.etcd_orm.save(node_summary)
 
     def get_cluster_node_ids(self, cluster_id):
         cluster_nodes = []
         try:
-            nodes = NS.etcd_orm.client.read(
+            nodes = NS._int.client.read(
                 '/clusters/%s/nodes' % cluster_id
             )
             for node in nodes.leaves:
@@ -284,7 +277,7 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_node_sds_name(self, node_id):
         sds_name = ''
         try:
-            sds_name = NS.etcd_orm.client.read(
+            sds_name = NS._int.client.read(
                 '/nodes/%s/TendrlContext/sds_name' % node_id
             ).value
         except (EtcdKeyNotFound, EtcdException):
@@ -294,18 +287,12 @@ class PerformanceMonitoringEtcdCentralStore(central_store.EtcdCentralStore):
     def get_node_cluster_id(self, node_id):
         cluster_id = ''
         try:
-            cluster_id = NS.etcd_orm.client.read(
+            cluster_id = NS._int.client.read(
                 '/nodes/%s/TendrlContext/integration_id' % node_id
             ).value
         except (EtcdKeyNotFound, EtcdException):
             pass
         return cluster_id
-
-    def save_clustersummary(self, cluster_summary):
-        NS.etcd_orm.save(cluster_summary)
-
-    def save_systemsummary(self, system_summary):
-        NS.etcd_orm.save(system_summary)
 
     def get_node_names_in_cluster(self, cluster_id):
         ret_val = []
