@@ -30,3 +30,6 @@ thresholds:
     osd_utilization:
       Warning: 85
       Failure: 95
+    rbd_utilization:
+      Warning: 85
+      Failure: 95
