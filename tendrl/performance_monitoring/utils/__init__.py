@@ -52,7 +52,7 @@ def initiate_config_generation(node_det):
         Job(
             job_id=str(uuid.uuid4()),
             status='new',
-            payload=json.dumps(job_params).encode('utf-8'),
+            payload=job_params,
         ).save()
     except (EtcdException, EtcdConnectionFailed, Exception) as ex:
         raise TendrlPerformanceMonitoringException(
