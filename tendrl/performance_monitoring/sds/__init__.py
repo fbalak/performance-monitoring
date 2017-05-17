@@ -195,13 +195,13 @@ class SDSPlugin(object):
         return status_wise_count
 
     def get_node_services_count(self, node_id):
-        services = etcd_read_key('nodes/%s/Service' % node_id)
+        services = etcd_read_key('nodes/%s/Services' % node_id)
         return services
 
     def get_services_count(self, cluster_det):
         node_service_counts = {}
         for node_id, node_det in cluster_det.get('nodes', {}).iteritems():
-            services = etcd_read_key('nodes/%s/Service' % node_id)
+            services = etcd_read_key('nodes/%s/Services' % node_id)
             for service_name, service_det in services.iteritems():
                 if service_name in self.supported_services:
                     if service_name not in node_service_counts:
