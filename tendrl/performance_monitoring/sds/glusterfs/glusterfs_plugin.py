@@ -140,12 +140,15 @@ class GlusterFSPlugin(SDSPlugin):
                     volume_status_wise_counts['down'] + 1
             volume_status_wise_counts['total'] = \
                 volume_status_wise_counts['total'] + 1
-        volume_status_wise_counts['degraded'] = \
-            int(cluster_det.get('GlobalDetails', {}).get(
+        volumes_up_degraded = \
+            cluster_det.get('GlobalDetails', {}).get(
                 'volume_up_degraded',
                 0
             )
-        )
+        if not volumes_up_degraded:
+            volumes_up_degraded = 0
+        volume_status_wise_counts['degraded'] = \
+            int(volumes_up_degraded)
         crit_alerts, warn_alerts = parse_resource_alerts(
             'volume',
             pm_consts.CLUSTER,
@@ -238,14 +241,20 @@ class GlusterFSPlugin(SDSPlugin):
             cluster_det.get('Volumes', {}),
             cluster_det.get('TendrlContext', {}).get('cluster_name', '')
         )
-        ret_val['connection_active'] = cluster_det.get(
+        connection_active = cluster_det.get(
             'GlobalDetails',
             {}
         ).get('connection_active', 0)
-        ret_val['connection_count'] = cluster_det.get(
+        if not connection_active:
+            connection_active = 0
+        ret_val['connection_active'] = connection_active
+        connection_count = cluster_det.get(
             'GlobalDetails',
             {}
         ).get('connection_count', 0)
+        if not connection_count:
+            connection_count = 0
+        ret_val['connection_count'] = connection_count
         return ret_val
 
     def get_system_client_connection_counts(self, cluster_summaries):
