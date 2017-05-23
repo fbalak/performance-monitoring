@@ -9,6 +9,7 @@ import six
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.commons.message import Message
+from tendrl.commons.utils import log_utils as logger
 from tendrl.performance_monitoring.utils import parse_resource_alerts
 from tendrl.performance_monitoring import constants as \
     pm_consts
@@ -310,11 +311,40 @@ class SDSMonitoringManager(object):
         sds_name = cluster_det.get('TendrlContext', {}).get('sds_name')
         for plugin in SDSPlugin.plugins:
             if plugin.name == sds_name:
-                return plugin.get_cluster_summary(cluster_id, cluster_det)
+                try:
+                    return plugin.get_cluster_summary(cluster_id, cluster_det)
+                except Exception as ex:
+                    Event(
+                        ExceptionMessage(
+                            priority="error",
+                            publisher=NS.publisher_id,
+                            payload={
+                                "message": 'Failed to fetch cluster summary'
+                                ' for cluster %s' % cluster_id,
+                                "exception": ex
+                            }
+                        )
+                    )
+                    return {}
 
     def compute_system_summary(self, cluster_summaries, clusters):
         for plugin in SDSPlugin.plugins:
-            plugin.compute_system_summary(cluster_summaries, clusters)
+            try:
+                plugin.compute_system_summary(cluster_summaries, clusters)
+            except Exception as ex:
+                Event(
+                    ExceptionMessage(
+                        priority="error",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Failed to fetch %s system summary' % (
+                                plugin
+                            ),
+                            "exception": ex
+                        }
+                    )
+                )
+                continue
 
     def configure_monitoring(self, integration_id):
         try:
