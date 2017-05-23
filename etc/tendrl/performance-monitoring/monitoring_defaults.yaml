@@ -20,6 +20,9 @@ thresholds:
     volume_utilization:
       Warning: 75
       Failure: 90
+    brick_utilization:
+      Warning: 75
+      Failure: 90
   ceph:
     cluster_utilization:
       Warning: 75
