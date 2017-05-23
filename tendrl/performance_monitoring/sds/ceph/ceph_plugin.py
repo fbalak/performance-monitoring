@@ -8,8 +8,11 @@ from tendrl.performance_monitoring.objects.system_summary \
 from tendrl.performance_monitoring.sds import SDSPlugin
 from tendrl.performance_monitoring.sds.ceph.pg_utils \
     import _calculate_pg_counters
-from tendrl.performance_monitoring.utils import parse_resource_alerts
-from tendrl.performance_monitoring.utils import read as etcd_read_key
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
+from tendrl.performance_monitoring.utils.util import parse_resource_alerts
+from tendrl.performance_monitoring.utils.central_store_util \
+    import read as etcd_read_key
 
 
 class CephPlugin(SDSPlugin):
@@ -28,7 +31,7 @@ class CephPlugin(SDSPlugin):
     def configure_monitoring(self, sds_tendrl_context):
         configs = []
         cluster_node_ids = \
-            NS.central_store_thread.get_cluster_node_ids(
+            central_store_util.get_cluster_node_ids(
                 sds_tendrl_context['integration_id']
             )
         for node_id in cluster_node_ids:
@@ -621,7 +624,7 @@ class CephPlugin(SDSPlugin):
             pm_consts.CRITICAL_ALERTS: 0,
             pm_consts.WARNING_ALERTS: 0
         }
-        cluster_id = NS.central_store_thread.get_node_cluster_id(
+        cluster_id = central_store_util.get_node_cluster_id(
             node_id
         )
         node_ip = ''

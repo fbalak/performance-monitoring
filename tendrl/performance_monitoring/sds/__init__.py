@@ -9,15 +9,18 @@ import six
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.commons.message import Message
-from tendrl.commons.utils import log_utils as logger
-from tendrl.performance_monitoring.utils import parse_resource_alerts
+from tendrl.performance_monitoring.utils.util import parse_resource_alerts
 from tendrl.performance_monitoring import constants as \
     pm_consts
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
-from tendrl.performance_monitoring.utils import get_latest_stat
-from tendrl.performance_monitoring.utils import list_modules_in_package_path
-from tendrl.performance_monitoring.utils import read as etcd_read_key
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
+from tendrl.performance_monitoring.utils.util import get_latest_stat
+from tendrl.performance_monitoring.utils.util \
+    import list_modules_in_package_path
+from tendrl.performance_monitoring.utils.central_store_util \
+    import read as etcd_read_key
 
 
 class NoSDSPluginException(Exception):
@@ -384,7 +387,7 @@ class SDSMonitoringManager(object):
 
     def get_node_summary(self, node_id):
         ret_val = {}
-        sds_name = NS.central_store_thread.get_node_sds_name(node_id)
+        sds_name = central_store_util.get_node_sds_name(node_id)
         if sds_name == "":
             return ret_val
         for plugin in SDSPlugin.plugins:

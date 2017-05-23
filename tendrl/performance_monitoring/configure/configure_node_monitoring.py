@@ -7,13 +7,15 @@ from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
-from tendrl.performance_monitoring.utils import initiate_config_generation
+from tendrl.performance_monitoring.utils.util import initiate_config_generation
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
 
 
 class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
     def init_monitoring(self):
         try:
-            node_dets = NS.central_store_thread.get_nodes_details()
+            node_dets = central_store_util.get_nodes_details()
             for node_det in node_dets:
                 if (
                     node_det['node_id'] not in
