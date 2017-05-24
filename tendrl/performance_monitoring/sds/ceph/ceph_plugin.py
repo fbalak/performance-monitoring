@@ -236,7 +236,8 @@ class CephPlugin(SDSPlugin):
             'total': 0,
             'down': 0,
             pm_consts.CRITICAL_ALERTS: 0,
-            pm_consts.WARNING_ALERTS: 0
+            pm_consts.WARNING_ALERTS: 0,
+            'near_full': 0
         }
         if 'maps' in cluster_det:
             osds = ast.literal_eval(
@@ -262,6 +263,13 @@ class CephPlugin(SDSPlugin):
                 {}
             ).get('integration_id', '')
         )
+        for osd_alert in crit_alerts:
+            if (
+                osd_alert['severity'] == pm_consts.CRITICAL and
+                osd_alert['resource'] == 'osd_utilization'
+            ):
+                osd_status_wise_counts['near_full'] = \
+                    osd_status_wise_counts.get('near_full', 0) + 1
         osd_status_wise_counts[
             pm_consts.CRITICAL_ALERTS
         ] = len(crit_alerts)
