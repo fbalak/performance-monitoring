@@ -154,31 +154,32 @@ class SDSPlugin(object):
                     ) / (
                         net_utilization['total'] * 1.0
                     )
+        if net_utilization['total']:
         # Push the computed system utilization to time-series db
-        NS.time_series_db_manager.get_plugin().push_metrics(
-            NS.time_series_db_manager.get_timeseriesnamefromresource(
-                sds_type=self.name,
-                utilization_type=pm_consts.TOTAL,
-                resource_name=pm_consts.SYSTEM_UTILIZATION
-            ),
-            net_utilization[pm_consts.TOTAL]
-        )
-        NS.time_series_db_manager.get_plugin().push_metrics(
-            NS.time_series_db_manager.get_timeseriesnamefromresource(
-                sds_type=self.name,
-                utilization_type=pm_consts.USED,
-                resource_name=pm_consts.SYSTEM_UTILIZATION
-            ),
-            net_utilization[pm_consts.USED]
-        )
-        NS.time_series_db_manager.get_plugin().push_metrics(
-            NS.time_series_db_manager.get_timeseriesnamefromresource(
-                sds_type=self.name,
-                utilization_type=pm_consts.PERCENT_USED,
-                resource_name=pm_consts.SYSTEM_UTILIZATION
-            ),
-            net_utilization[pm_consts.PERCENT_USED]
-        )
+            NS.time_series_db_manager.get_plugin().push_metrics(
+                NS.time_series_db_manager.get_timeseriesnamefromresource(
+                    sds_type=self.name,
+                    utilization_type=pm_consts.TOTAL,
+                    resource_name=pm_consts.SYSTEM_UTILIZATION
+                ),
+                net_utilization[pm_consts.TOTAL]
+            )
+            NS.time_series_db_manager.get_plugin().push_metrics(
+                NS.time_series_db_manager.get_timeseriesnamefromresource(
+                    sds_type=self.name,
+                    utilization_type=pm_consts.USED,
+                    resource_name=pm_consts.SYSTEM_UTILIZATION
+                ),
+                net_utilization[pm_consts.USED]
+            )
+            NS.time_series_db_manager.get_plugin().push_metrics(
+                NS.time_series_db_manager.get_timeseriesnamefromresource(
+                    sds_type=self.name,
+                    utilization_type=pm_consts.PERCENT_USED,
+                    resource_name=pm_consts.SYSTEM_UTILIZATION
+                ),
+                net_utilization[pm_consts.PERCENT_USED]
+            )
         return net_utilization
 
     def get_system_host_status_wise_counts(self, cluster_summaries):
