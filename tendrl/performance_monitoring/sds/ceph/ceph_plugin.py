@@ -66,7 +66,7 @@ class CephPlugin(SDSPlugin):
                         plugin_config['cluster_name'] = \
                             sds_tendrl_context['cluster_name']
                         configs.append({
-                            'plugin': "%s_%s" % (self.name, plugin),
+                            'plugin': "tendrl_%s_%s" % (self.name, plugin),
                             'plugin_conf': plugin_config,
                             'node_id': node_id,
                             'fqdn': sds_node_context['fqdn']
@@ -87,7 +87,7 @@ class CephPlugin(SDSPlugin):
                     plugin_config['cluster_name'] = \
                         sds_tendrl_context['cluster_name']
                     configs.append({
-                        'plugin': "ceph_cluster_iops",
+                        'plugin': "tendrl_ceph_cluster_iops",
                         'plugin_conf': plugin_config,
                         'node_id': node_id,
                         'fqdn': sds_node_context['fqdn']
@@ -120,7 +120,7 @@ class CephPlugin(SDSPlugin):
                         "ceph_node_network_throughput"
                     )
                     configs.append({
-                        'plugin': "%s_node_network_throughput" % self.name,
+                        'plugin': "tendrl_%s_node_network_throughput" % self.name,
                         'plugin_conf': plugin_config,
                         'node_id': node_id,
                         'fqdn': sds_node_context['fqdn']
