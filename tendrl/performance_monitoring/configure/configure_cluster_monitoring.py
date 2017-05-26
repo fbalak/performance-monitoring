@@ -1,5 +1,5 @@
 import gevent
-from tendrl.performance_monitoring.utils import initiate_config_generation
+from tendrl.performance_monitoring.utils.util import initiate_config_generation
 
 
 class ConfigureClusterMonitoring(gevent.greenlet.Greenlet):
