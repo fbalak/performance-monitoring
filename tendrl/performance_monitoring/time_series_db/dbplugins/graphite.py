@@ -15,6 +15,8 @@ from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBPlugin
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
 
 
 class GraphitePlugin(TimeSeriesDBPlugin):
@@ -118,7 +120,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
             raise TendrlPerformanceMonitoringException(str(ex))
 
     def get_node_disk_iops_stats(self, node_id):
-        node_name = NS.central_store_thread.get_node_name_from_id(
+        node_name = central_store_util.get_node_name_from_id(
             node_id
         )
         node_name = node_name.replace('.', '_')

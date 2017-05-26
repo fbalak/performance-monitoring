@@ -4,7 +4,8 @@ from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.objects.cluster_summary \
     import ClusterSummary
-from tendrl.performance_monitoring.utils import read as etcd_read
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
 
 
 class ClusterSummarise(gevent.greenlet.Greenlet):
@@ -27,7 +28,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             status_wise_count['total'] = status_wise_count['total'] + 1
             alerts = []
             try:
-                alerts = NS.central_store_thread.get_node_alerts(node_id)
+                alerts = central_store_util.get_node_alerts(node_id)
             except EtcdKeyNotFound:
                 pass
             for alert in alerts:
@@ -43,7 +44,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
         node_summaries = []
         try:
             for node_id in node_ids:
-                node_summary = etcd_read(
+                node_summary = central_store_util.read(
                     '/monitoring/summary/nodes/%s' % node_id
                 )
                 node_summaries.append(node_summary)
@@ -88,7 +89,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
         while not self._complete.is_set():
             cluster_summaries = []
             try:
-                clusters = etcd_read('/clusters')
+                clusters = central_store_util.read('/clusters')
                 for clusterid, cluster_det in clusters.iteritems():
                     gevent.sleep(0.1)
                     cluster_summary = self.parse_cluster(clusterid,
