@@ -15,8 +15,10 @@ from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
-from tendrl.performance_monitoring.utils import get_latest_stat
-from tendrl.performance_monitoring.utils import get_latest_stats
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
+from tendrl.performance_monitoring.utils.util import get_latest_stat
+from tendrl.performance_monitoring.utils.util import get_latest_stats
 
 
 class NodeSummarise(gevent.greenlet.Greenlet):
@@ -28,7 +30,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         try:
             percent_user = get_latest_stat(node, 'cpu.percent-user')
             percent_system = get_latest_stat(node, 'cpu.percent-system')
-            node_name = NS.central_store_thread.get_node_name_from_id(
+            node_name = central_store_util.get_node_name_from_id(
                 node
             )
             NS.time_series_db_manager.get_plugin().push_metrics(
@@ -109,7 +111,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             if free + used == 0:
                 return None
             percent_used = float(used * 100) / float(free + used)
-            node_name = NS.central_store_thread.get_node_name_from_id(
+            node_name = central_store_util.get_node_name_from_id(
                 node
             )
             NS.time_series_db_manager.get_plugin().push_metrics(
@@ -132,7 +134,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
 
     def get_alert_count(self, node):
         try:
-            alert_ids = NS.central_store_thread.get_node_alert_ids(node)
+            alert_ids = central_store_util.get_node_alert_ids(node)
             return len(alert_ids)
         except TendrlPerformanceMonitoringException:
             return 0
@@ -204,18 +206,18 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             swap_usage = old_summary.swap_usage
         try:
             summary = NodeSummary(
-                name=NS.central_store_thread.get_node_name_from_id(node),
+                name=central_store_util.get_node_name_from_id(node),
                 node_id=node,
                 status=self.get_node_status(node),
-                role=NS.central_store_thread.get_node_role(node),
-                cluster_name=NS.central_store_thread.get_node_cluster_name(
+                role=central_store_util.get_node_role(node),
+                cluster_name=central_store_util.get_node_cluster_name(
                     node
                 ),
                 cpu_usage=cpu_usage,
                 memory_usage=memory_usage,
                 storage_usage=storage_usage,
                 swap_usage=swap_usage,
-                selinux_mode=NS.central_store_thread.get_node_selinux_mode(
+                selinux_mode=central_store_util.get_node_selinux_mode(
                     node
                 ),
                 sds_det=sds_det,
@@ -235,7 +237,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             )
 
     def get_node_status(self, node_id):
-        last_seen_at = NS.central_store_thread.get_node_last_seen_at(node_id)
+        last_seen_at = central_store_util.get_node_last_seen_at(node_id)
         if last_seen_at:
             interval = (
                 tendrl_now() -
@@ -251,7 +253,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         return pm_consts.STATUS_NOT_MONITORED
 
     def calculate_host_summaries(self):
-        nodes = NS.central_store_thread.get_node_ids()
+        nodes = central_store_util.get_node_ids()
         for node in nodes:
             self.calculate_host_summary(node)
 

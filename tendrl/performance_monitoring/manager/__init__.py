@@ -17,8 +17,6 @@ from tendrl.performance_monitoring import PerformanceMonitoringNS
 from tendrl.performance_monitoring.aggregator.cluster_summary \
     import ClusterSummarise
 from tendrl.performance_monitoring.aggregator.node_summary import NodeSummarise
-from tendrl.performance_monitoring.central_store \
-    import PerformanceMonitoringEtcdCentralStore
 from tendrl.performance_monitoring.configure.configure_cluster_monitoring\
     import ConfigureClusterMonitoring
 from tendrl.performance_monitoring.configure.configure_node_monitoring \
@@ -30,6 +28,9 @@ from tendrl.performance_monitoring.exceptions \
 from tendrl.performance_monitoring.sds import SDSMonitoringManager
 from tendrl.performance_monitoring.time_series_db.manager \
     import TimeSeriesDBManager
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
+
 
 app = Flask(__name__)
 
@@ -37,7 +38,7 @@ app = Flask(__name__)
 @app.route("/monitoring/nodes/<node_id>/<resource_name>/stats")
 def get_nodestats(node_id, resource_name):
     try:
-        node_name = NS.central_store_thread.get_node_name_from_id(
+        node_name = central_store_util.get_node_name_from_id(
             node_id
         )
         return Response(
@@ -98,7 +99,7 @@ def get_clusterutilization(cluster_id, utiliation_type):
 @app.route("/monitoring/clusters/<cluster_id>/latency/stats")
 def get_cluster_latency(cluster_id):
     try:
-        nodes_in_cluster = NS.central_store_thread.get_node_names_in_cluster(
+        nodes_in_cluster = central_store_util.get_node_names_in_cluster(
             cluster_id
         )
         metric_name = NS.time_series_db_manager.get_timeseriesnamefromresource(
@@ -268,7 +269,7 @@ def get_sdsutilization(sds_type, utiliation_type):
 @app.route("/monitoring/clusters/<cluster_id>/summary")
 def get_cluster_summary(cluster_id):
     try:
-        cluster_summary = NS.central_store_thread.get_cluster_summary(
+        cluster_summary = central_store_util.get_cluster_summary(
             cluster_id
         )
         return Response(
@@ -294,7 +295,7 @@ def get_system_summary(cluster_type):
             raise TendrlPerformanceMonitoringException(
                 'Unsupported sds %s' % cluster_type
             )
-        summary = NS.central_store_thread.get_system_summary(cluster_type)
+        summary = central_store_util.get_system_summary(cluster_type)
         return Response(
             json.dumps(summary),
             status=200,
@@ -314,7 +315,7 @@ def get_system_summary(cluster_type):
 @app.route("/monitoring/nodes/<node_id>/monitored_types")
 def get_stat_types(node_id):
     try:
-        node_name = NS.central_store_thread.get_node_name_from_id(
+        node_name = central_store_util.get_node_name_from_id(
             node_id
         )
         return Response (
@@ -366,10 +367,10 @@ def get_node_summary():
                         )
                     )
             summary, ret_code, exs = \
-                NS.central_store_thread.get_node_summary(node_list)
+                central_store_util.get_node_summary(node_list)
         else:
             summary, ret_code, exs = \
-                NS.central_store_thread.get_node_summary()
+                central_store_util.get_node_summary()
         return Response(
             json.dumps(summary),
             status=ret_code,
@@ -435,7 +436,6 @@ class TendrlPerformanceManager(object):
             raise
 
     def start(self):
-        NS.central_store_thread.start()
         self.node_summariser.start()
         self.cluster_summariser.start()
         self.configure_cluster_monitoring.start()
@@ -458,7 +458,6 @@ class TendrlPerformanceManager(object):
     def stop(self):
         # TODO (anmolB) central_store_thread is deprecated, move methods
         # inside it to respective utils
-        NS.central_store_thread.stop()
         self.configure_cluster_monitoring.stop()
         self.configure_node_monitoring.stop()
         NS.configurator_queue.close()
@@ -470,7 +469,6 @@ def main():
     PerformanceMonitoringNS()
     TendrlNS()
     NS.publisher_id = "performance_monitoring"
-    NS.central_store_thread = PerformanceMonitoringEtcdCentralStore()
     NS.time_series_db_manager = TimeSeriesDBManager()
     NS.performance_monitoring.definitions.save()
     NS.performance_monitoring.config.save()

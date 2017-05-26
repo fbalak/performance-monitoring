@@ -7,8 +7,11 @@ from tendrl.performance_monitoring import constants as \
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
-from tendrl.performance_monitoring.utils import parse_resource_alerts
-from tendrl.performance_monitoring.utils import read as etcd_read_key
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
+from tendrl.performance_monitoring.utils.util import parse_resource_alerts
+from tendrl.performance_monitoring.utils.central_store_util \
+    import read as etcd_read_key
 
 
 class GlusterFSPlugin(SDSPlugin):
@@ -26,7 +29,7 @@ class GlusterFSPlugin(SDSPlugin):
     def configure_monitoring(self, sds_tendrl_context):
         configs = []
         cluster_node_ids = \
-            NS.central_store_thread.get_cluster_node_ids(
+            central_store_util.get_cluster_node_ids(
                 sds_tendrl_context['integration_id']
             )
         for node_id in cluster_node_ids:
@@ -55,8 +58,10 @@ class GlusterFSPlugin(SDSPlugin):
                 if not is_configured:
                     plugin_config['cluster_id'] = \
                         sds_tendrl_context['integration_id']
+                    plugin_config['cluster_name'] = \
+                        sds_tendrl_context['cluster_name']
                     configs.append({
-                        'plugin': "%sfs_%s" % (self.name, plugin),
+                        'plugin': "tendrl_%sfs_%s" % (self.name, plugin),
                         'plugin_conf': plugin_config,
                         'node_id': node_id,
                         'fqdn': sds_node_context['fqdn']
@@ -73,7 +78,9 @@ class GlusterFSPlugin(SDSPlugin):
                 is_configured = False
             if not is_configured:
                 configs.append({
-                    'plugin': "%sfs_peer_network_throughput" % (self.name),
+                    'plugin': "tendrl_%sfs_peer_network_throughput" % (
+                        self.name
+                    ),
                     'plugin_conf': {
                         'peer_name': sds_node_context['fqdn']
                     },
@@ -443,7 +450,7 @@ class GlusterFSPlugin(SDSPlugin):
             )
 
     def get_node_brick_status_counts(self, node_id):
-        node_name = NS.central_store_thread.get_node_name_from_id(node_id)
+        node_name = central_store_util.get_node_name_from_id(node_id)
         brick_status_wise_counts = {
             'stopped': 0,
             'total': 0,
@@ -451,7 +458,7 @@ class GlusterFSPlugin(SDSPlugin):
             pm_consts.CRITICAL_ALERTS: 0
         }
         try:
-            cluster_id = NS.central_store_thread.get_node_cluster_id(
+            cluster_id = central_store_util.get_node_cluster_id(
                 node_id
             )
             if cluster_id:
