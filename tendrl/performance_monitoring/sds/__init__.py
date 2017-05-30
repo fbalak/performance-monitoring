@@ -16,7 +16,7 @@ from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
 import tendrl.performance_monitoring.utils.central_store_util \
     as central_store_util
-from tendrl.performance_monitoring.utils.util import get_latest_stat
+from tendrl.performance_monitoring.utils.util import get_latest_node_stat
 from tendrl.performance_monitoring.utils.util \
     import list_modules_in_package_path
 from tendrl.performance_monitoring.utils.central_store_util \
@@ -267,7 +267,7 @@ class SDSPlugin(object):
                         ),
                         1
                     )
-                curr_throughput = get_latest_stat(
+                curr_throughput = get_latest_node_stat(
                     node_id,
                     metric_name
                 )

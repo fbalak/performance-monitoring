@@ -162,7 +162,9 @@ class TimeSeriesDBManager(object):
             pm_consts.CPU: '$underscored_node_name{0}cpu{0}cpu_system_user{0}'
             '$utilization_type',
             pm_consts.STORAGE: '$underscored_node_name{0}storage{0}'
-            '$utilization_type'
+            '$utilization_type',
+            pm_consts.CLUSTER_IOPS: 'cluster_$cluster_id{0}'
+            'cluster_iops_read_write{0}gauge-total'
         }
         if not pattern.get(resource_name):
             raise TendrlPerformanceMonitoringException(
