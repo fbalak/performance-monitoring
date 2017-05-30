@@ -1,10 +1,13 @@
 import json
 from tendrl.commons import objects
+from tendrl.performance_monitoring import constants as \
+    pm_consts
 
 
 class ClusterSummary(objects.BaseObject):
     def __init__(self,
                  utilization={'': ''},
+                 iops=pm_consts.NOT_AVAILABLE,
                  hosts_count={'': ''},
                  node_summaries=[],
                  sds_det={'': ''},
@@ -19,6 +22,7 @@ class ClusterSummary(objects.BaseObject):
         ).__init__(*args, **kwargs)
         self.cluster_id = cluster_id
         self.utilization = utilization
+        self.iops = iops
         self.hosts_count = hosts_count
         self.node_summaries = node_summaries
         self.sds_det = sds_det
@@ -50,6 +54,7 @@ class ClusterSummary(objects.BaseObject):
     def copy(self):
         return ClusterSummary(
             utilization=self.utilization,
+            iops=self.iops,
             hosts_count=self.hosts_count,
             node_summaries=self.node_summaries,
             sds_det=self.sds_det,

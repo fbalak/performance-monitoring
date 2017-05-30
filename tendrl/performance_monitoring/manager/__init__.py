@@ -288,6 +288,60 @@ def get_cluster_summary(cluster_id):
         )
 
 
+@app.route("/monitoring/clusters/iops")
+def get_clusters_iops():
+    try:
+        # Only 1 filter that is the cluster list is the only supported filter
+        # anything else is simply ignored.
+        iops = []
+        ret_code = 200
+        exs = ''
+        is_filter = (
+            len(request.args) == 1 and
+            request.args.items()[0][0] == 'cluster_ids'
+        )
+        if is_filter:
+            cluster_list = (request.args.items()[0][1]).split(",")
+            for index, node in enumerate(cluster_list):
+                uuid_string = cluster_list[index].strip()
+                if UUID(
+                    uuid_string,
+                    version=4
+                ).hex == uuid_string.replace('-', ''):
+                    cluster_list[index] = cluster_list[index].strip()
+                else:
+                    raise TendrlPerformanceMonitoringException(
+                        'Cluster id %s in the parameter is not a valid '
+                        'uuid' % (
+                            uuid_string
+                        )
+                    )
+            iops, ret_code, exs = \
+                central_store_util.get_cluster_iops(cluster_list)
+        else:
+            iops, ret_code, exs = \
+                central_store_util.get_cluster_iops()
+        return Response(
+            json.dumps(iops),
+            status=ret_code,
+            mimetype='application/json'
+        )
+    except (
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        ValueError,
+        SyntaxError,
+        etcd.EtcdException,
+        TendrlPerformanceMonitoringException,
+        TypeError
+    ) as ex:
+        return Response(
+            str(ex),
+            status=500,
+            mimetype='application/json'
+        )
+
+
 @app.route("/monitoring/system/<cluster_type>/summary")
 def get_system_summary(cluster_type):
     try:
