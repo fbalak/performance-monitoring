@@ -54,11 +54,19 @@ class CephPlugin(SDSPlugin):
                         )
                     is_configured = True
                     if node_id not in self.configured_nodes:
-                        self.configured_nodes[node_id] = [plugin]
+                        self.configured_nodes[node_id] = [
+                            "tendrl_%s_%s" % (self.name, plugin)
+                        ]
                         is_configured = False
-                    if plugin not in self.configured_nodes.get(node_id, []):
+                    if (
+                        "tendrl_%s_%s" % (self.name, plugin) not in
+                            self.configured_nodes.get(node_id, [])
+                    ):
                         node_plugins = self.configured_nodes.get(node_id, [])
-                        node_plugins.append(plugin)
+                        node_plugins.append(
+                            "tendrl_%s_%s" % (self.name, plugin)
+                        )
+                        self.configured_nodes[node_id] = node_plugins
                         is_configured = False
                     if not is_configured:
                         plugin_config['cluster_id'] = \
@@ -73,19 +81,20 @@ class CephPlugin(SDSPlugin):
                         })
                 is_configured = True
                 if (
-                    "ceph_cluster_iops" not in
+                    "tendrl_ceph_cluster_iops" not in
                         self.configured_nodes.get(node_id, [])
                 ):
                     node_plugins = self.configured_nodes.get(node_id, [])
                     node_plugins.append(
-                        "ceph_cluster_iops"
+                        "tendrl_ceph_cluster_iops"
                     )
+                    self.configured_nodes[node_id] = node_plugins
                     is_configured = False
                 if not is_configured:
-                    plugin_config['cluster_id'] = \
-                        sds_tendrl_context['integration_id']
-                    plugin_config['cluster_name'] = \
-                        sds_tendrl_context['cluster_name']
+                    plugin_config = {
+                        'cluster_id': sds_tendrl_context['integration_id'],
+                        'cluster_name': sds_tendrl_context['cluster_name']
+                    }
                     configs.append({
                         'plugin': "tendrl_ceph_cluster_iops",
                         'plugin_conf': plugin_config,
@@ -94,9 +103,10 @@ class CephPlugin(SDSPlugin):
                     })
             is_configured = True
             if (
-                "ceph_node_network_throughput" not in
+                "tendrl_ceph_node_network_throughput" not in
                     self.configured_nodes.get(node_id, [])
             ):
+                plugin_config = {}
                 plugin_config['cluster_network'] = ' '.join(
                     self.get_nw_node_interfaces(
                         node_id,
@@ -117,10 +127,13 @@ class CephPlugin(SDSPlugin):
                 ):
                     node_plugins = self.configured_nodes.get(node_id, [])
                     node_plugins.append(
-                        "ceph_node_network_throughput"
+                        "tendrl_ceph_node_network_throughput"
                     )
+                    self.configured_nodes[node_id] = node_plugins
                     configs.append({
-                        'plugin': "tendrl_%s_node_network_throughput" % self.name,
+                        'plugin': "tendrl_%s_node_network_throughput" % (
+                            self.name
+                        ),
                         'plugin_conf': plugin_config,
                         'node_id': node_id,
                         'fqdn': sds_node_context['fqdn']
