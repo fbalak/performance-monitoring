@@ -266,7 +266,12 @@ def get_node_summary(node_ids=None):
             return summary, 206, exs
 
 
-def get_cluster_iops(cluster_ids=None):
+def get_cluster_iops(
+    cluster_ids=None,
+    time_interval=None,
+    start_time=None,
+    end_time=None
+):
     iops = []
     exs = ''
     if cluster_ids is None:
@@ -286,7 +291,10 @@ def get_cluster_iops(cluster_ids=None):
             cluster_iops = NS.time_series_db_manager.get_plugin(
             ).get_metric_stats(
                 entity_name,
-                metric_name
+                metric_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
             )
             json_io = json.loads(cluster_iops)
             if (

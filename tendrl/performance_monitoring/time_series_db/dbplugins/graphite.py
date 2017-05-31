@@ -1,4 +1,5 @@
 import ast
+from dateutil.parser import parse
 import gevent
 from gevent import socket
 import re
@@ -38,7 +39,10 @@ class GraphitePlugin(TimeSeriesDBPlugin):
         self,
         aggregation_type,
         entity_names,
-        metric_name
+        metric_name,
+        time_interval=None,
+        start_time=None,
+        end_time=None
     ):
         target = ''
         for entity_name in entity_names:
@@ -51,9 +55,22 @@ class GraphitePlugin(TimeSeriesDBPlugin):
         target = target[:-1]
         if aggregation_type == pm_consts.AVERAGE:
             target = 'averageSeries(%s)' % target
+        if time_interval:
+            if time_interval == 'latest':
+                target = "cactiStyle(%s)" % target
+            else:
+                start_time = self.parse_time(time_interval)
+        if start_time:
+            start_time = self.parse_time(start_time)
+        if end_time:
+            end_time = self.parse_time(end_time)
         url = 'http://%s:%s/render?target=%s&format=json' % (
             self.host, str(self.port), target
         )
+        if start_time:
+            url = "%s&from=%s" % (url, start_time)
+        if end_time:
+            url = "%s&until=%s" % (url, end_time)
         try:
             stats = self.http.request('GET', url, timeout=5)
             if stats.status == 200:
@@ -83,13 +100,43 @@ class GraphitePlugin(TimeSeriesDBPlugin):
             )
             raise TendrlPerformanceMonitoringException(str(ex))
 
-    def get_metric_stats(self, entity_name, metric_name, time_interval=None):
+    def parse_time(self, time_str):
+        # TODO(Anmol B): Need to add timezone info gathering
+        re_exp = re.compile(
+            "^-([0-9]?[0-9])?s$|^-([0-9]?[0-9])?min$|^-([0-9]?[0-9])?h$|^-([0-9])*d$|^-([0-9])*w$|^-([0-9])*mon$|^-([0-9])*y$"
+        )
+        if re_exp.match(time_str):
+            return time_str
+        else:
+            date_obj = parse(time_str)
+            return date_obj.strftime('%H:%M_%Y%m%d')
+        return None
+
+    def get_metric_stats(
+        self,
+        entity_name,
+        metric_name,
+        time_interval=None,
+        start_time=None,
+        end_time=None
+    ):
         metric_name = '%s.%s' % (entity_name.replace('.', '_'), metric_name)
         target = '%s.%s' % (self.prefix, metric_name)
-        if time_interval == 'latest':
-            target = "cactiStyle(%s)" % target
+        if time_interval:
+            if time_interval == 'latest':
+                target = "cactiStyle(%s)" % target
+            else:
+                start_time = self.parse_time(time_interval)
+        if start_time:
+            start_time = self.parse_time(start_time)
+        if end_time:
+            end_time = self.parse_time(end_time)
         url = 'http://%s:%s/render?target=%s&format=json' % (
             self.host, str(self.port), target)
+        if start_time:
+            url = "%s&from=%s" % (url, start_time)
+        if end_time:
+            url = "%s&until=%s" % (url, end_time)
         try:
             stats = self.http.request('GET', url, timeout=5)
             if stats.status == 200:
@@ -119,7 +166,13 @@ class GraphitePlugin(TimeSeriesDBPlugin):
             )
             raise TendrlPerformanceMonitoringException(str(ex))
 
-    def get_node_disk_iops_stats(self, node_id):
+    def get_node_disk_iops_stats(
+        self,
+        node_id,
+        time_interval=None,
+        start_time=None,
+        end_time=None
+    ):
         node_name = central_store_util.get_node_name_from_id(
             node_id
         )
@@ -132,11 +185,24 @@ class GraphitePlugin(TimeSeriesDBPlugin):
             node_name=node_name,
         )
         target = urllib.quote(target)
+        if time_interval:
+            if time_interval == 'latest':
+                target = "cactiStyle(%s)" % target
+            else:
+                start_time = self.parse_time(time_interval)
+        if start_time:
+            start_time = self.parse_time(start_time)
+        if end_time:
+            end_time = self.parse_time(end_time)
         url = 'http://%s:%s/render?target=%s&format=json' % (
             self.host,
             str(self.port),
             target
         )
+        if start_time:
+            url = "%s&from=%s" % (url, start_time)
+        if end_time:
+            url = "%s&until=%s" % (url, end_time)
         try:
             stats = self.http.request('GET', url, timeout=5)
             if stats.status == 200:

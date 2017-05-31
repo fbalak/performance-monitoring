@@ -42,7 +42,14 @@ class TimeSeriesDBPlugin(object):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_metric_stats(self, entity_name, metric_name):
+    def get_metric_stats(
+        self,
+        entity_name,
+        metric_name,
+        time_interval=None,
+        start_time=None,
+        end_time=None
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -75,7 +82,17 @@ class TimeSeriesDBPlugin(object):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_node_disk_iops_stats(self, node_id):
+    def get_node_disk_iops_stats(
+        self,
+        node_id,
+        time_interval=None,
+        start_time=None,
+        end_time=None
+    ):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def parse_time(self, time_str):
         raise NotImplementedError()
 
 
