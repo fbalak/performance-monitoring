@@ -129,16 +129,23 @@ def get_latest_stats(node, resource):
         raise ex
 
 
+def get_latest_node_stat(node, resource):
+    try:
+        node_name = central_store_util.get_node_name_from_id(
+            node
+        )
+        return get_latest_stat(node_name, resource)
+    except TendrlPerformanceMonitoringException as ex:
+        raise ex
+
+
 ''' Get latest stats of resource as in param resource'''
 
 
 def get_latest_stat(node, resource):
     try:
-        node_name = central_store_util.get_node_name_from_id(
-            node
-        )
         stats = NS.time_series_db_manager.get_plugin().get_metric_stats(
-            node_name,
+            node,
             resource,
             'latest'
         )

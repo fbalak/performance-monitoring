@@ -42,7 +42,14 @@ class TimeSeriesDBPlugin(object):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_metric_stats(self, entity_name, metric_name):
+    def get_metric_stats(
+        self,
+        entity_name,
+        metric_name,
+        time_interval=None,
+        start_time=None,
+        end_time=None
+    ):
         raise NotImplementedError()
 
     @abstractmethod
@@ -75,7 +82,17 @@ class TimeSeriesDBPlugin(object):
         raise NotImplementedError()
 
     @abstractmethod
-    def get_node_disk_iops_stats(self, node_id):
+    def get_node_disk_iops_stats(
+        self,
+        node_id,
+        time_interval=None,
+        start_time=None,
+        end_time=None
+    ):
+        raise NotImplementedError()
+
+    @abstractmethod
+    def parse_time(self, time_str):
         raise NotImplementedError()
 
 
@@ -162,7 +179,9 @@ class TimeSeriesDBManager(object):
             pm_consts.CPU: '$underscored_node_name{0}cpu{0}cpu_system_user{0}'
             '$utilization_type',
             pm_consts.STORAGE: '$underscored_node_name{0}storage{0}'
-            '$utilization_type'
+            '$utilization_type',
+            pm_consts.CLUSTER_IOPS: 'cluster_$cluster_id{0}'
+            'cluster_iops_read_write{0}gauge-total'
         }
         if not pattern.get(resource_name):
             raise TendrlPerformanceMonitoringException(

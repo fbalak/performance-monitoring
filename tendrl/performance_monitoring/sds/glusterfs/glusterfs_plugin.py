@@ -51,9 +51,13 @@ class GlusterFSPlugin(SDSPlugin):
                 if node_id not in self.configured_nodes:
                     self.configured_nodes[node_id] = [plugin]
                     is_configured = False
-                if plugin not in self.configured_nodes[node_id]:
+                if (
+                    "tendrl_%sfs_%s" % (self.name, plugin) not in
+                    self.configured_nodes[node_id]
+                ):
                     node_plugins = self.configured_nodes[node_id]
-                    node_plugins.append(plugin)
+                    node_plugins.append("tendrl_%sfs_%s" % (self.name, plugin))
+                    self.configured_nodes[node_id] = node_plugins
                     is_configured = False
                 if not is_configured:
                     plugin_config['cluster_id'] = \
@@ -75,6 +79,7 @@ class GlusterFSPlugin(SDSPlugin):
                 node_plugins.append(
                     "%sfs_peer_network_throughput" % (self.name)
                 )
+                self.configured_nodes[node_id] = node_plugins
                 is_configured = False
             if not is_configured:
                 configs.append({

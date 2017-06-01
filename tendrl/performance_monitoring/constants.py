@@ -23,6 +23,8 @@ SWAP = "swap"
 SWAP_TOTAL = "swap_aggregated"
 CPU = "cpu"
 STORAGE = "storage"
+NOT_AVAILABLE = "N/A"
+CLUSTER_IOPS = "cluster_iops"
 SUPPORTED_ALERT_TYPES = [
     "utilization",
     "status"

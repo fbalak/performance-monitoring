@@ -17,7 +17,7 @@ from tendrl.performance_monitoring.objects.node_summary \
     import NodeSummary
 import tendrl.performance_monitoring.utils.central_store_util \
     as central_store_util
-from tendrl.performance_monitoring.utils.util import get_latest_stat
+from tendrl.performance_monitoring.utils.util import get_latest_node_stat
 from tendrl.performance_monitoring.utils.util import get_latest_stats
 
 
@@ -28,8 +28,8 @@ class NodeSummarise(gevent.greenlet.Greenlet):
 
     def get_net_host_cpu_utilization(self, node):
         try:
-            percent_user = get_latest_stat(node, 'cpu.percent-user')
-            percent_system = get_latest_stat(node, 'cpu.percent-system')
+            percent_user = get_latest_node_stat(node, 'cpu.percent-user')
+            percent_system = get_latest_node_stat(node, 'cpu.percent-system')
             node_name = central_store_util.get_node_name_from_id(
                 node
             )
@@ -51,9 +51,9 @@ class NodeSummarise(gevent.greenlet.Greenlet):
 
     def get_net_host_memory_utilization(self, node):
         try:
-            used = get_latest_stat(node, 'memory.memory-used')
-            total = get_latest_stat(node, 'aggregation-memory-sum.memory')
-            percent_used = get_latest_stat(node, 'memory.percent-used')
+            used = get_latest_node_stat(node, 'memory.memory-used')
+            total = get_latest_node_stat(node, 'aggregation-memory-sum.memory')
+            percent_used = get_latest_node_stat(node, 'memory.percent-used')
             return {
                 'used': str(used),
                 'percent_used': str(percent_used),
@@ -71,19 +71,19 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                     resource_name=pm_consts.SWAP,
                     utilization_type=pm_consts.USED
                 )
-            used = get_latest_stat(node, metric_name)
+            used = get_latest_node_stat(node, metric_name)
             metric_name = \
                 NS.time_series_db_manager.get_timeseriesnamefromresource(
                     resource_name=pm_consts.SWAP_TOTAL,
                     utilization_type=pm_consts.TOTAL
                 )
-            total = get_latest_stat(node, metric_name)
+            total = get_latest_node_stat(node, metric_name)
             metric_name = \
                 NS.time_series_db_manager.get_timeseriesnamefromresource(
                     resource_name=pm_consts.SWAP,
                     utilization_type=pm_consts.PERCENT_USED
                 )
-            percent_used = get_latest_stat(node, metric_name)
+            percent_used = get_latest_node_stat(node, metric_name)
             return {
                 'used': str(used),
                 'percent_used': str(percent_used),

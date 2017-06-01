@@ -1,6 +1,7 @@
 from etcd import EtcdConnectionFailed
 from etcd import EtcdException
 from etcd import EtcdKeyNotFound
+import json
 from ruamel import yaml
 
 from tendrl.commons.event import Event
@@ -11,6 +12,8 @@ from tendrl.performance_monitoring.objects.cluster_summary \
     import ClusterSummary
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
+from tendrl.performance_monitoring import constants as \
+    pm_consts
 
 
 # this function can return json for any etcd key
@@ -103,6 +106,26 @@ def get_node_cluster_name(node_id):
                 str(ex)
             )
         )
+
+
+def get_cluster_ids():
+    try:
+        cluster_ids = []
+        clusters_etcd = NS._int.client.read('/clusters')
+        for cluster in clusters_etcd.leaves:
+            cluster_key_contents = cluster.key.split('/')
+            if len(cluster_key_contents) == 3:
+                cluster_ids.append(cluster_key_contents[2])
+        return cluster_ids
+    except EtcdKeyNotFound:
+        return []
+    except (
+        EtcdConnectionFailed,
+        ValueError,
+        SyntaxError,
+        TypeError
+    ) as ex:
+        raise TendrlPerformanceMonitoringException(str(ex))
 
 
 def get_node_ids():
@@ -241,6 +264,66 @@ def get_node_summary(node_ids=None):
             return summary, 500, exs
         else:
             return summary, 206, exs
+
+
+def get_cluster_iops(
+    cluster_ids=None,
+    time_interval=None,
+    start_time=None,
+    end_time=None
+):
+    iops = []
+    exs = ''
+    if cluster_ids is None:
+        cluster_ids = get_cluster_ids()
+    for cluster_id in cluster_ids:
+        try:
+            entity_name, metric_name = NS.time_series_db_manager.\
+                get_timeseriesnamefromresource(
+                    cluster_id=cluster_id,
+                    resource_name=pm_consts.IOPS,
+                    utilization_type=pm_consts.TOTAL
+                ).split(
+                    NS.time_series_db_manager.get_plugin().get_delimeter(),
+                    1
+                )
+            NS._int.client.read('/clusters/%s' % cluster_id)
+            cluster_iops = NS.time_series_db_manager.get_plugin(
+            ).get_metric_stats(
+                entity_name,
+                metric_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
+            )
+            json_io = json.loads(cluster_iops)
+            if (
+                isinstance(json_io, list) and
+                len(json_io) > 0
+            ):
+                json_io[0]['cluster_id'] = cluster_id
+                iops.append(json_io[0])
+            else:
+                json_io = {
+                    'cluster_id': cluster_id,
+                    'target': '',
+                    'datapoints': []
+                }
+                iops.append(json_io)
+        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException) as ex:
+            exs = "%s.Failed to fetch iops of cluster with id: %s.Error %s" % (
+                exs,
+                cluster_id,
+                str(ex)
+            )
+            continue
+    if len(iops) == len(cluster_ids):
+        return iops, 200, None
+    else:
+        if len(iops) == 0:
+            return iops, 500, exs
+        else:
+            return iops, 206, exs
 
 
 def get_nodes_details():

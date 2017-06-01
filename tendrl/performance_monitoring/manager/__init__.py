@@ -41,10 +41,27 @@ def get_nodestats(node_id, resource_name):
         node_name = central_store_util.get_node_name_from_id(
             node_id
         )
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
-            get_metric_stats(node_name, resource_name),
+            get_metric_stats(
+                node_name,
+                resource_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
+            ),
             status=200,
             mimetype='application/json'
         )
@@ -65,22 +82,39 @@ def get_nodestats(node_id, resource_name):
 )
 def get_clusterutilization(cluster_id, utiliation_type):
     try:
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
         entity_name, metric_name = NS.time_series_db_manager.\
             get_timeseriesnamefromresource(
                 resource_name=pm_consts.CLUSTER_UTILIZATION,
                 utilization_type=utiliation_type,
                 cluster_id=cluster_id
-        ).split(
-            NS.time_series_db_manager.get_plugin().get_delimeter(),
-            1
-        )
+            ).split(
+                NS.time_series_db_manager.get_plugin().get_delimeter(),
+                1
+            )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
         NS._int.client.read('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
-            get_metric_stats(entity_name, metric_name),
+            get_metric_stats(
+                entity_name,
+                metric_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
+            ),
             status=200,
             mimetype='application/json'
         )
@@ -99,6 +133,17 @@ def get_clusterutilization(cluster_id, utiliation_type):
 @app.route("/monitoring/clusters/<cluster_id>/latency/stats")
 def get_cluster_latency(cluster_id):
     try:
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
         nodes_in_cluster = central_store_util.get_node_names_in_cluster(
             cluster_id
         )
@@ -110,7 +155,10 @@ def get_cluster_latency(cluster_id):
             NS.time_series_db_manager.get_plugin().get_aggregated_stats(
                 pm_consts.AVERAGE,
                 nodes_in_cluster,
-                metric_name
+                metric_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
             ),
             status=200,
             mimetype='application/json'
@@ -124,6 +172,17 @@ def get_cluster_latency(cluster_id):
 )
 def get_cluster_iops(cluster_id):
     try:
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
         entity_name, metric_name = NS.time_series_db_manager.\
             get_timeseriesnamefromresource(
                 cluster_id=cluster_id,
@@ -139,7 +198,10 @@ def get_cluster_iops(cluster_id):
         return Response(
             NS.time_series_db_manager.get_plugin().get_metric_stats(
                 entity_name,
-                metric_name
+                metric_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
             ),
             status=200,
             mimetype='application/json'
@@ -161,23 +223,40 @@ def get_cluster_iops(cluster_id):
 )
 def get_clusterthroughput(cluster_id, network_type):
     try:
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
         entity_name, metric_name = NS.time_series_db_manager.\
             get_timeseriesnamefromresource(
                 cluster_id=cluster_id,
                 network_type=network_type,
                 resource_name=pm_consts.CLUSTER_THROUGHPUT,
                 utilization_type=pm_consts.USED
-        ).split(
-            NS.time_series_db_manager.get_plugin().get_delimeter(),
-            1
-        )
+            ).split(
+                NS.time_series_db_manager.get_plugin().get_delimeter(),
+                1
+            )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
         NS._int.client.read('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
-            get_metric_stats(entity_name, metric_name),
+            get_metric_stats(
+                entity_name,
+                metric_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
+            ),
             status=200,
             mimetype='application/json'
         )
@@ -196,6 +275,17 @@ def get_clusterthroughput(cluster_id, network_type):
 @app.route("/monitoring/system/<sds_type>/throughput/<network_type>/stats")
 def get_sdsthroughput(sds_type, network_type):
     try:
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
         # validate sds-type
         if sds_type not in NS.sds_monitoring_manager.supported_sds:
             raise TendrlPerformanceMonitoringException(
@@ -207,14 +297,20 @@ def get_sdsthroughput(sds_type, network_type):
                 network_type=network_type,
                 resource_name=pm_consts.SYSTEM_THROUGHPUT,
                 utilization_type=pm_consts.USED
-        ).split(
-            NS.time_series_db_manager.get_plugin().get_delimeter(),
-            1
-        )
+            ).split(
+                NS.time_series_db_manager.get_plugin().get_delimeter(),
+                1
+            )
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
-            get_metric_stats(entity_name, metric_name),
+            get_metric_stats(
+                entity_name,
+                metric_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
+            ),
             status=200,
             mimetype='application/json'
         )
@@ -233,6 +329,17 @@ def get_sdsthroughput(sds_type, network_type):
 @app.route("/monitoring/system/<sds_type>/utilization/<utiliation_type>/stats")
 def get_sdsutilization(sds_type, utiliation_type):
     try:
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
         # validate sds-type
         if sds_type not in NS.sds_monitoring_manager.supported_sds:
             raise TendrlPerformanceMonitoringException(
@@ -250,7 +357,13 @@ def get_sdsutilization(sds_type, utiliation_type):
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
-            get_metric_stats(entity_name, metric_name),
+            get_metric_stats(
+                entity_name,
+                metric_name,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
+            ),
             status=200,
             mimetype='application/json'
         )
@@ -283,6 +396,76 @@ def get_cluster_summary(cluster_id):
                 cluster_id,
                 str(ex)
             ),
+            status=500,
+            mimetype='application/json'
+        )
+
+
+@app.route("/monitoring/clusters/iops")
+def get_clusters_iops():
+    try:
+        cluster_list = None
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
+                elif request_param[0] == "cluster_ids":
+                    cluster_list = (request.args.items()[0][1]).split(",")
+        iops = []
+        ret_code = 200
+        exs = ''
+        if cluster_list:
+            for index, node in enumerate(cluster_list):
+                uuid_string = cluster_list[index].strip()
+                if UUID(
+                    uuid_string,
+                    version=4
+                ).hex == uuid_string.replace('-', ''):
+                    cluster_list[index] = cluster_list[index].strip()
+                else:
+                    raise TendrlPerformanceMonitoringException(
+                        'Cluster id %s in the parameter is not a valid '
+                        'uuid' % (
+                            uuid_string
+                        )
+                    )
+            iops, ret_code, exs = \
+                central_store_util.get_cluster_iops(
+                    cluster_list,
+                    time_interval=time_interval,
+                    start_time=start_time,
+                    end_time=end_time
+                )
+        else:
+            iops, ret_code, exs = \
+                central_store_util.get_cluster_iops(
+                    time_interval=time_interval,
+                    start_time=start_time,
+                    end_time=end_time
+                )
+        return Response(
+            json.dumps(iops),
+            status=ret_code,
+            mimetype='application/json'
+        )
+    except (
+        etcd.EtcdKeyNotFound,
+        etcd.EtcdConnectionFailed,
+        ValueError,
+        SyntaxError,
+        etcd.EtcdException,
+        TendrlPerformanceMonitoringException,
+        TypeError
+    ) as ex:
+        return Response(
+            str(ex),
             status=500,
             mimetype='application/json'
         )
@@ -395,10 +578,25 @@ def get_node_summary():
 @app.route("/monitoring/nodes/<node_id>/iops/stats")
 def get_nodeiopsstats(node_id):
     try:
+        start_time = None
+        end_time = None
+        time_interval = None
+        if len(request.args.items()) > 0:
+            for request_param in request.args.items():
+                if request_param[0] == "start_time":
+                    start_time = request_param[1]
+                elif request_param[0] == "end_time":
+                    end_time = request_param[1]
+                elif request_param[0] == "interval":
+                    time_interval = request_param[1]
         return Response(
-            NS.time_series_db_manager.\
-            get_plugin().\
-            get_node_disk_iops_stats(node_id),
+            NS.time_series_db_manager.get_plugin().\
+            get_node_disk_iops_stats(
+                node_id,
+                time_interval=time_interval,
+                start_time=start_time,
+                end_time=end_time
+            ),
             status=200,
             mimetype='application/json'
         )

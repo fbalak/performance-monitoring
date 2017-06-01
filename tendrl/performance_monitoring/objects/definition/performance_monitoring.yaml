@@ -35,6 +35,8 @@ namespace.performance_monitoring:
       attrs:
         utilization:
           type: Dict
+        iops:
+          type: String
         hosts_count:
           type: Dict
         node_summaries:
