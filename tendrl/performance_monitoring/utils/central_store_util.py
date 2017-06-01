@@ -304,11 +304,11 @@ def get_cluster_iops(
                 json_io[0]['cluster_id'] = cluster_id
                 iops.append(json_io[0])
             else:
-                json_io.append({
+                json_io = {
                     'cluster_id': cluster_id,
                     'target': '',
                     'datapoints': []
-                })
+                }
                 iops.append(json_io)
         except (EtcdKeyNotFound, TendrlPerformanceMonitoringException) as ex:
             exs = "%s.Failed to fetch iops of cluster with id: %s.Error %s" % (
