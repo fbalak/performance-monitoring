@@ -47,8 +47,8 @@ class ClusterSummary(objects.BaseObject):
         if isinstance(summary.node_summaries, basestring):
             summary.node_summaries = json.loads(summary.node_summaries)
         summary.sds_det = json.loads(summary.sds_det[''])
-        summary.hosts_count = json.loads(self.hosts_count[''])
-        summary.utilization = json.loads(self.utilization[''])
+        summary.hosts_count = json.loads(summary.hosts_count[''])
+        summary.utilization = json.loads(summary.utilization[''])
         return summary
 
     def copy(self):
