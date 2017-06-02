@@ -19,8 +19,6 @@ import tendrl.performance_monitoring.utils.central_store_util \
 from tendrl.performance_monitoring.utils.util import get_latest_node_stat
 from tendrl.performance_monitoring.utils.util \
     import list_modules_in_package_path
-from tendrl.performance_monitoring.utils.central_store_util \
-    import read as etcd_read_key
 
 
 class NoSDSPluginException(Exception):
@@ -57,18 +55,18 @@ class SDSPlugin(object):
         )
 
     @abstractmethod
-    def get_cluster_summary(self, cluster_id, cluster_det):
+    def get_cluster_summary(self, cluster_id, cluster_name):
         raise NotImplementedError(
             "The plugins overriding SDSPlugin should mandatorily override this"
         )
 
     @abstractmethod
-    def compute_system_summary(self, cluster_summaries, clusters):
+    def compute_system_summary(self, cluster_summaries):
         raise NotImplementedError(
             "The plugins overriding SDSPlugin should mandatorily override this"
         )
 
-    def get_clusters_status_wise_counts(self, clusters):
+    def get_clusters_status_wise_counts(self, cluster_summaries):
         clusters_status_wise_counts = {
             'status': {
                 'total': 0
@@ -78,14 +76,26 @@ class SDSPlugin(object):
             pm_consts.WARNING_ALERTS: 0
         }
         cluster_alerts = []
-        for cluster_id, cluster_det in clusters.iteritems():
+        for cluster_summary in cluster_summaries:
+            cluster_tendrl_context = {}
+            cluster_status = {}
+            sds_name = central_store_util.get_cluster_sds_name(
+                cluster_summary.cluster_id
+            )
+            try:
+                cluster_tendrl_context = central_store_util.read(
+                    '/clusters/%s/TendrlContext' % cluster_summary.cluster_id
+                )
+                cluster_status = central_store_util.read(
+                    '/clusters/%s/GlobalDetails' % cluster_summary.cluster_id
+                )
+                cluster_status = cluster_status.get('status')
+            except EtcdKeyNotFound:
+                return clusters_status_wise_counts
             if (
                 self.name in
-                    cluster_det.get('TendrlContext', {}).get('sds_name')
+                    cluster_tendrl_context.get('sds_name')
             ):
-                cluster_status = cluster_det.get(
-                    'GlobalDetails', {}
-                ).get('status')
                 if cluster_status:
                     if (
                         cluster_status not in
@@ -107,7 +117,7 @@ class SDSPlugin(object):
                     parse_resource_alerts(
                         None,
                         pm_consts.CLUSTER,
-                        cluster_id=cluster_id
+                        cluster_id=cluster_summary.cluster_id
                     )
                 cluster_alerts.extend(cluster_critical_alerts)
                 cluster_alerts.extend(cluster_warning_alerts)
@@ -200,13 +210,13 @@ class SDSPlugin(object):
         return status_wise_count
 
     def get_node_services_count(self, node_id):
-        services = etcd_read_key('nodes/%s/Services' % node_id)
+        services = central_store_util.read('nodes/%s/Services' % node_id)
         return services
 
-    def get_services_count(self, cluster_det):
+    def get_services_count(self, cluster_node_ids):
         node_service_counts = {}
-        for node_id, node_det in cluster_det.get('nodes', {}).iteritems():
-            services = etcd_read_key('nodes/%s/Services' % node_id)
+        for node_id in cluster_node_ids:
+            services = central_store_util.read('nodes/%s/Services' % node_id)
             for service_name, service_det in services.iteritems():
                 if service_name in self.supported_services:
                     if service_name not in node_service_counts:
@@ -247,9 +257,9 @@ class SDSPlugin(object):
     def get_cluster_throughput(self, nw_type, cluster_nodes, cluster_id):
         throughput = 0.0
         cnt = 0
-        for node_id, node_det in cluster_nodes.iteritems():
+        for node_id, node_context in cluster_nodes.iteritems():
             try:
-                node_name = node_det.get('NodeContext', {}).get(
+                node_name = node_context.get(
                     'fqdn',
                     ''
                 )
@@ -311,12 +321,12 @@ class SDSMonitoringManager(object):
         self.supported_sds = []
         self.load_sds_plugins()
 
-    def get_cluster_summary(self, cluster_id, cluster_det):
-        sds_name = cluster_det.get('TendrlContext', {}).get('sds_name')
+    def get_cluster_summary(self, cluster_id, cluster_name):
+        sds_name = central_store_util.get_cluster_sds_name(cluster_id)
         for plugin in SDSPlugin.plugins:
             if plugin.name == sds_name:
                 try:
-                    return plugin.get_cluster_summary(cluster_id, cluster_det)
+                    return plugin.get_cluster_summary(cluster_id, cluster_name)
                 except Exception as ex:
                     Event(
                         ExceptionMessage(
@@ -331,10 +341,10 @@ class SDSMonitoringManager(object):
                     )
                     return {}
 
-    def compute_system_summary(self, cluster_summaries, clusters):
+    def compute_system_summary(self, cluster_summaries):
         for plugin in SDSPlugin.plugins:
             try:
-                plugin.compute_system_summary(cluster_summaries, clusters)
+                plugin.compute_system_summary(cluster_summaries)
             except Exception as ex:
                 Event(
                     ExceptionMessage(
@@ -352,7 +362,7 @@ class SDSMonitoringManager(object):
 
     def configure_monitoring(self, integration_id):
         try:
-            sds_tendrl_context = etcd_read_key(
+            sds_tendrl_context = central_store_util.read(
                 'clusters/%s/TendrlContext' % integration_id
             )
         except EtcdKeyNotFound:

@@ -1,4 +1,5 @@
 import ast
+from etcd import EtcdKeyNotFound
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.commons.message import Message
@@ -94,7 +95,7 @@ class GlusterFSPlugin(SDSPlugin):
                 })
         return configs
 
-    def get_brick_status_wise_counts(self, volumes_det, cluster_id):
+    def get_brick_status_wise_counts(self, cluster_id, volumes_det):
         brick_status_wise_counts = {
             'stopped': 0,
             'total': 0,
@@ -136,8 +137,41 @@ class GlusterFSPlugin(SDSPlugin):
         ] = len(warn_alerts)
         return brick_status_wise_counts
 
-    def get_volume_status_wise_counts(self, cluster_det, cluster_id):
-        volumes_det = cluster_det.get('Volumes', {})
+    def get_cluster_volume_ids(self, cluster_id):
+        volume_ids = []
+        try:
+            etcd_volume_ids = NS._int.client.read(
+                '/clusters/%s/Volumes' % cluster_id
+            )
+        except EtcdKeyNotFound:
+            return volume_ids
+        for etcd_volume in etcd_volume_ids.leaves:
+            etcd_volume_contents = etcd_volume.key.split('/')
+            # /clusters/eb3ce823-70e8-418f-bdc4-d0124ae926f8/Volumes/abce1d94-3918-4faf-bf70-9eee07696da2
+            if len(etcd_volume_contents) == 5:
+                volume_ids.append(etcd_volume_contents[4])
+        return volume_ids
+
+    def get_cluster_volumes(self, cluster_id):
+        volumes = {}
+        try:
+            volume_ids = self.get_cluster_volume_ids(cluster_id)
+        except EtcdKeyNotFound:
+            return volumes
+        for volume_id in volume_ids:
+            try:
+                volume = etcd_read_key(
+                    '/clusters/%s/Volumes/%s' % (
+                        cluster_id,
+                        volume_id
+                    )
+                )
+                volumes[volume_id] = volume
+            except EtcdKeyNotFound:
+                continue
+        return volumes
+
+    def get_volume_status_wise_counts(self, cluster_id, volumes):
         volume_status_wise_counts = {
             'down': 0,
             'total': 0,
@@ -146,19 +180,19 @@ class GlusterFSPlugin(SDSPlugin):
             pm_consts.WARNING_ALERTS: 0
         }
         # Needs to be tested
-        for vol_id, vol_det in volumes_det.iteritems():
+        for vol_id, vol_det in volumes.iteritems():
             if 'Started' not in vol_det.get('status'):
                 volume_status_wise_counts['down'] = \
                     volume_status_wise_counts['down'] + 1
             volume_status_wise_counts['total'] = \
                 volume_status_wise_counts['total'] + 1
-        volumes_up_degraded = \
-            cluster_det.get('GlobalDetails', {}).get(
-                'volume_up_degraded',
-                0
-            )
-        if not volumes_up_degraded:
-            volumes_up_degraded = 0
+        volumes_up_degraded = 0
+        try:
+            volumes_up_degraded = NS._int.client.read(
+                '/clusters/%s/GlobalDetails/volume_up_degraded' % cluster_id
+            ).value
+        except EtcdKeyNotFound:
+            pass
         volume_status_wise_counts['degraded'] = \
             int(volumes_up_degraded)
         crit_alerts, warn_alerts = parse_resource_alerts(
@@ -174,9 +208,7 @@ class GlusterFSPlugin(SDSPlugin):
         ] = len(warn_alerts)
         return volume_status_wise_counts
 
-    def get_most_used_volumes(self, cluster_det):
-        volumes_det = cluster_det.get('Volumes', {})
-        # Needs to be tested
+    def get_most_used_volumes(self, cluster_name, volumes_det):
         most_used_volumes = []
         v_sort = sorted(
             volumes_det.keys(), key=lambda x: (volumes_det[x]['pcnt_used'])
@@ -184,14 +216,11 @@ class GlusterFSPlugin(SDSPlugin):
         v_sort.reverse()
         for volume_id in v_sort:
             vol_det = volumes_det.get(volume_id)
-            vol_det['cluster_name'] = cluster_det.get(
-                'TendrlContext',
-                {}
-            ).get('cluster_name', '')
+            vol_det['cluster_name'] = cluster_name
             most_used_volumes.append(vol_det)
         return most_used_volumes[:5]
 
-    def get_most_used_bricks(self, volumes_det, cluster_name):
+    def get_most_used_bricks(self, cluster_name, volumes_det):
         brick_utilizations = []
         try:
             for volume_id, volume_det in volumes_det.iteritems():
@@ -226,46 +255,51 @@ class GlusterFSPlugin(SDSPlugin):
         brick_utilizations.reverse()
         return brick_utilizations[:5]
 
-    def get_cluster_summary(self, cluster_id, cluster_det):
+    def get_cluster_summary(self, cluster_id, cluster_name):
         ret_val = {}
+        cluster_node_ids = central_store_util.get_cluster_node_ids(cluster_id)
         ret_val['services_count'] = self.get_services_count(
-            cluster_det
+            cluster_node_ids
         )
+        volumes = self.get_cluster_volumes(cluster_id)
         ret_val['volume_status_wise_counts'] = \
             self.get_volume_status_wise_counts(
-                cluster_det,
-                cluster_id
+                cluster_id,
+                volumes
         )
         ret_val['brick_status_wise_counts'] = \
             self.get_brick_status_wise_counts(
-                cluster_det.get('Volumes', {}),
-                cluster_id
+                cluster_id,
+                volumes
         )
         ret_val['most_used_volumes'] = self.get_most_used_volumes(
-            cluster_det
+            cluster_name,
+            volumes
         )
         ret_val['throughput'] = self.get_cluster_throughput(
             'cluster_network',
-            cluster_det.get('nodes', {}),
+            central_store_util.get_cluster_node_contexts(cluster_id),
             cluster_id
         )
         ret_val['most_used_bricks'] = self.get_most_used_bricks(
-            cluster_det.get('Volumes', {}),
-            cluster_det.get('TendrlContext', {}).get('cluster_name', '')
+            cluster_id,
+            volumes
         )
-        connection_active = cluster_det.get(
-            'GlobalDetails',
-            {}
-        ).get('connection_active', 0)
-        if not connection_active:
-            connection_active = 0
+        connection_active = 0
+        try:
+            connection_active = NS._int.client.read(
+                '/clusters/%s/GlobalDetails/connection_active' % cluster_id
+            ).value
+        except EtcdKeyNotFound:
+            pass
         ret_val['connection_active'] = connection_active
-        connection_count = cluster_det.get(
-            'GlobalDetails',
-            {}
-        ).get('connection_count', 0)
-        if not connection_count:
-            connection_count = 0
+        connection_count = 0
+        try:
+            connection_count = NS._int.client.read(
+                '/clusters/%s/GlobalDetails/connection_count' % cluster_id
+            ).value
+        except EtcdKeyNotFound:
+            pass
         ret_val['connection_count'] = connection_count
         return ret_val
 
@@ -408,7 +442,7 @@ class GlusterFSPlugin(SDSPlugin):
         )
         return throughput
 
-    def compute_system_summary(self, cluster_summaries, clusters):
+    def compute_system_summary(self, cluster_summaries):
         try:
             connection_count, connection_active = \
                 self.get_system_client_connection_counts(cluster_summaries)
@@ -417,7 +451,9 @@ class GlusterFSPlugin(SDSPlugin):
                 hosts_count=self.get_system_host_status_wise_counts(
                     cluster_summaries
                 ),
-                cluster_count=self.get_clusters_status_wise_counts(clusters),
+                cluster_count=self.get_clusters_status_wise_counts(
+                    cluster_summaries
+                ),
                 sds_det={
                     'volume_status_wise_counts': self.get_system_volume_status_wise_counts(
                         cluster_summaries
@@ -456,6 +492,11 @@ class GlusterFSPlugin(SDSPlugin):
 
     def get_node_brick_status_counts(self, node_id):
         node_name = central_store_util.get_node_name_from_id(node_id)
+        ip_indexes = etcd_read_key('/indexes/ip')
+        node_ip = ''
+        for ip, indexed_node_id in ip_indexes.iteritems():
+            if node_id == indexed_node_id:
+                node_ip = ip
         brick_status_wise_counts = {
             'stopped': 0,
             'total': 0,
@@ -467,20 +508,21 @@ class GlusterFSPlugin(SDSPlugin):
                 node_id
             )
             if cluster_id:
-                cluster = etcd_read_key('/clusters/%s' % cluster_id)
-                if cluster:
-                    volumes_det = cluster.get('Volumes', {})
-                    for volume_id, volume_det in volumes_det.iteritems():
-                        for brick_path, brick_det in volume_det.get(
-                            'Bricks',
-                            {}
-                        ).iteritems():
-                            if brick_det['hostname'] == node_name:
-                                if brick_det['status'] == 'Stopped':
-                                    brick_status_wise_counts['stopped'] = \
-                                        brick_status_wise_counts['stopped'] + 1
-                                brick_status_wise_counts['total'] = \
-                                    brick_status_wise_counts['total'] + 1
+                volumes_det = self.get_cluster_volumes(cluster_id)
+                for volume_id, volume_det in volumes_det.iteritems():
+                    for brick_path, brick_det in volume_det.get(
+                        'Bricks',
+                        {}
+                    ).iteritems():
+                        if (
+                            brick_det['hostname'] == node_name or
+                            brick_det['hostname'] == node_ip
+                        ):
+                            if brick_det['status'] == 'Stopped':
+                                brick_status_wise_counts['stopped'] = \
+                                    brick_status_wise_counts['stopped'] + 1
+                            brick_status_wise_counts['total'] = \
+                                brick_status_wise_counts['total'] + 1
             crit_alerts, warn_alerts = parse_resource_alerts(
                 'brick',
                 pm_consts.CLUSTER,
