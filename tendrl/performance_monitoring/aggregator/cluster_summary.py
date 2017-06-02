@@ -18,15 +18,38 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
         super(ClusterSummarise, self).__init__()
         self._complete = gevent.event.Event()
 
-    def parse_host_count(self, cluster_nodes):
+    def parse_host_count(self, cluster_id):
         status_wise_count = {
             'total': 0,
             'down': 0,
             'crit_alert_count': 0,
             'warn_alert_count': 0
         }
-        for node_id, node_det in cluster_nodes.iteritems():
-            status = node_det.get('NodeContext', {}).get('status')
+        cluster_nodes = central_store_util.get_cluster_node_ids(cluster_id)
+        for node_id in cluster_nodes:
+            try:
+                node_context = central_store_util.read(
+                    '/clusters/%s/nodes/%s/NodeContext' % (
+                        cluster_id,
+                        node_id
+                    )
+                )
+            except EtcdKeyNotFound as ex:
+                Event(
+                    ExceptionMessage(
+                        priority="error",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Failed to fetch node-context from'
+                            ' /clusters/%s/nodes/%s/NodeContext' % (
+                                cluster_id,
+                                node_id
+                            ),
+                            "exception": ex
+                        }
+                    )
+                )
+            status = node_context.get('status')
             if status:
                 if status != 'UP':
                     status_wise_count['down'] = status_wise_count['down'] + 1
@@ -45,16 +68,28 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                         status_wise_count['warn_alert_count'] + 1
         return status_wise_count
 
-    def cluster_nodes_summary(self, node_ids):
+    def cluster_nodes_summary(self, cluster_id):
         node_summaries = []
-        try:
-            for node_id in node_ids:
+        node_ids = central_store_util.get_cluster_node_ids(cluster_id)
+        for node_id in node_ids:
+            try:
                 node_summary = central_store_util.read(
                     '/monitoring/summary/nodes/%s' % node_id
                 )
                 node_summaries.append(node_summary)
-        except EtcdKeyNotFound:
-            return node_summaries
+            except EtcdKeyNotFound as ex:
+                Event(
+                    ExceptionMessage(
+                        priority="error",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Error caught fetching node summary of'
+                            ' node %s.' % node_id,
+                            "exception": ex
+                        }
+                    )
+                )
+                continue
         return node_summaries
 
     def get_cluster_iops(self, cluster_id):
@@ -72,8 +107,10 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
         except TendrlPerformanceMonitoringException:
             return pm_consts.NOT_AVAILABLE
 
-    def parse_cluster(self, cluster_id, cluster_det):
-        utilization = cluster_det.get('Utilization', {})
+    def parse_cluster(self, cluster_id):
+        utilization = central_store_util.read(
+            '/clusters/%s/Utilization' % cluster_id
+        )
         used = 0
         total = 0
         percent_used = 0
@@ -94,14 +131,14 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 'percent_used': float(percent_used)
             },
             iops=str(self.get_cluster_iops(cluster_id)),
-            hosts_count=self.parse_host_count(cluster_det.get('nodes', {})),
-            sds_type=cluster_det.get('TendrlContext', {}).get('sds_name'),
+            hosts_count=self.parse_host_count(cluster_id),
+            sds_type=central_store_util.get_cluster_sds_name(cluster_id),
             node_summaries=self.cluster_nodes_summary(
-                cluster_det.get('nodes', {}).keys()
+                cluster_id
             ),
             sds_det=NS.sds_monitoring_manager.get_cluster_summary(
                 cluster_id,
-                cluster_det
+                central_store_util.get_cluster_name(cluster_id)
             ),
             cluster_id=cluster_id,
         )
@@ -110,16 +147,14 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
         while not self._complete.is_set():
             cluster_summaries = []
             try:
-                clusters = central_store_util.read('/clusters')
-                for clusterid, cluster_det in clusters.iteritems():
+                clusters = central_store_util.get_cluster_ids()
+                for clusterid in clusters:
                     gevent.sleep(0.1)
-                    cluster_summary = self.parse_cluster(clusterid,
-                                                         cluster_det)
+                    cluster_summary = self.parse_cluster(clusterid)
                     cluster_summaries.append(cluster_summary.copy())
                     cluster_summary.save(update=False)
                 NS.sds_monitoring_manager.compute_system_summary(
-                    cluster_summaries,
-                    clusters
+                    cluster_summaries
                 )
             except EtcdKeyNotFound:
                 pass
@@ -131,7 +166,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                         payload={
                             "message": 'Error caught computing summary.',
                             "exception": ex
-                            }
+                        }
                     )
                 )
             gevent.sleep(60)

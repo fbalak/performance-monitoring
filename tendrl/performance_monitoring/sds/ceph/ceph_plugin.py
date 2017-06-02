@@ -1,4 +1,5 @@
 import ast
+from etcd import EtcdKeyNotFound
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
@@ -162,34 +163,55 @@ class CephPlugin(SDSPlugin):
             pass
         return nw_node_interfaces
 
-    def get_most_used_pools(self, cluster_det):
+    def get_cluster_pool_ids(self, cluster_id):
+        pools = []
+        try:
+            etcd_pools = NS._int.client.read(
+                '/clusters/%s/Pools/' % cluster_id
+            )
+            for etcd_pool in etcd_pools.leaves:
+                # /clusters/a88ada59-f52b-4608-9311-96cccfbbbf6a/Pools/0
+                pool_key_contents = etcd_pool.key.split('/')
+                if len(pool_key_contents) == 5:
+                    pools.append(pool_key_contents[4])
+        except EtcdKeyNotFound:
+            pass
+        return pools
+
+    def get_cluster_pools(self, cluster_id):
+        pools = {}
+        try:
+            pool_ids = self.get_cluster_pool_ids(cluster_id)
+            for pool_id in pool_ids:
+                pool = etcd_read_key(
+                    '/clusters/%s/Pools/%s' % (
+                        cluster_id,
+                        pool_id
+                    )
+                )
+                pools[pool_id] = pool
+        except EtcdKeyNotFound:
+            pass
+        return pools
+
+    def get_most_used_pools(self, cluster_name, pools):
         most_used_pools = []
-        pools = cluster_det.get('Pools', {})
         p_sort = sorted(pools.keys(), key=lambda x: (pools[x]['percent_used']))
         p_sort.reverse()
         for pool_id in p_sort:
             pool_det = pools.get(pool_id)
-            pool_det['cluster_name'] = cluster_det.get(
-                'TendrlContext',
-                {}
-            ).get('sds_name', '')
+            pool_det['cluster_name'] = cluster_name
             most_used_pools.append(pool_det)
         return most_used_pools[:5]
 
-    def get_rbd_status_wise_counts(self, cluster_id, cluster_det):
+    def get_rbd_status_wise_counts(self, cluster_id, rbds):
         # No status for rbds so currently only alert counters will be available
         rbd_status_wise_counts = {
             pm_consts.CRITICAL_ALERTS: 0,
             pm_consts.WARNING_ALERTS: 0,
             pm_consts.TOTAL: 0
         }
-        for pool_id, pool_det in cluster_det.get('Pools', {}).iteritems():
-            rbd_status_wise_counts[pm_consts.TOTAL] = \
-                rbd_status_wise_counts[pm_consts.TOTAL] + len(pool_det.get(
-                    'Rbds',
-                    {}
-                ).keys()
-            )
+        rbd_status_wise_counts[pm_consts.TOTAL] = len(rbds)
         crit_alerts, warn_alerts = parse_resource_alerts(
             'rbd',
             pm_consts.CLUSTER,
@@ -203,7 +225,7 @@ class CephPlugin(SDSPlugin):
         ] = len(warn_alerts)
         return rbd_status_wise_counts
 
-    def get_pool_status_wise_counts(self, cluster_id, cluster_det):
+    def get_pool_status_wise_counts(self, cluster_id, pools):
         # No status for pools, so only alert counters will be available
         pool_status_wise_counts = {
             pm_consts.CRITICAL_ALERTS: 0,
@@ -211,7 +233,7 @@ class CephPlugin(SDSPlugin):
             pm_consts.TOTAL: 0
         }
         pool_status_wise_counts[pm_consts.TOTAL] = \
-            len(cluster_det.get('Pools', {}).keys())
+            len(pools.keys())
         crit_alerts, warn_alerts = parse_resource_alerts(
             'pool',
             pm_consts.CLUSTER,
@@ -225,29 +247,82 @@ class CephPlugin(SDSPlugin):
         ] = len(warn_alerts)
         return pool_status_wise_counts
 
-    def get_most_used_rbds(self, cluster_det):
+    def get_rbd_names(self, cluster_id, pool_ids):
+        rbd_names = {}
+        for pool_id in pool_ids:
+            try:
+                etcd_pool_rbds = NS._int.client.read(
+                    '/clusters/%s/Pools/%s/Rbds' % (
+                        cluster_id,
+                        pool_id
+                    )
+                )
+                for etcd_pool_rbd in etcd_pool_rbds.leaves:
+                    etcd_pool_rbd_key_contents = etcd_pool_rbd.key.split('/')
+                    # /clusters/a88ada59-f52b-4608-9311-96cccfbbbf6a/Pools/0/Rbds/MyBlockDevice
+                    if len(etcd_pool_rbd_key_contents) == 7:
+                        pool_rbds = rbd_names.get(pool_id, [])
+                        pool_rbds.append(etcd_pool_rbd_key_contents[6])
+                        rbd_names[pool_id] = pool_rbds
+            except EtcdKeyNotFound:
+                continue
+        return rbd_names
+
+    def get_rbds(self, cluster_id, pools):
+        rbds = []
+        pool_ids = []
+        try:
+            for pool_id, pool in pools.iteritems():
+                pool_ids.append(pool_id)
+            rbd_names = self.get_rbd_names(cluster_id, pool_ids)
+        except EtcdKeyNotFound:
+            pass
+        for pool_id, pool_rbds in rbd_names.iteritems():
+            for rbd in pool_rbds:
+                try:
+                    rbd_dict = etcd_read_key(
+                        '/clusters/%s/Pools/%s/Rbds/%s' % (
+                            cluster_id,
+                            pool_id,
+                            rbd
+                        )
+                    )
+                    rbds.append(rbd_dict)
+                except EtcdKeyNotFound:
+                    continue
+        return rbds
+
+    def get_most_used_rbds(self, cluster_name, rbds):
         # Needs to be tested
         most_used_rbds = []
-        pools = cluster_det.get('Pools', {})
-        rbds = []
-        for pool_id, pool_det in pools.iteritems():
-            for rbd_id, rbd_det in pool_det.get('Rbds', {}).iteritems():
-                rbd_det['percent_used'] = 0
-                if rbd_det['provisioned'] != 0:
-                    rbd_det['percent_used'] = (
-                        int(rbd_det['used']) * 100 * 1.0
-                    ) / (
-                        int(rbd_det['provisioned']) * 1.0
-                    )
-                rbd_det['cluster_name'] = cluster_det.get(
-                    'TendrlContext', {}
-                ).get('sds_name', '')
-                rbds.append(rbd_det)
+        for index, rbd in enumerate(rbds):
+            rbds[index]['cluster_name'] = cluster_name
+            rbds[index]['percent_used'] = 0
+            if rbd['provisioned'] > 0:
+                rbds[index]['percent_used'] = (
+                    int(rbd['used']) * 100 * 1.0
+                ) / (
+                    int(rbd['provisioned']) * 1.0
+                )
         most_used_rbds = sorted(rbds, key=lambda k: k['percent_used'])
         most_used_rbds.reverse()
         return most_used_rbds[:5]
 
-    def get_osd_status_wise_counts(self, cluster_det):
+    def get_cluster_osds(self, cluster_id):
+        osds = []
+        try:
+            etcd_osds = etcd_read_key(
+                '/clusters/%s/maps/osd_map/data/osds' % cluster_id
+            )
+            etcd_osds = etcd_osds.get('osds')
+            osds = ast.literal_eval(
+                etcd_osds
+            )
+        except EtcdKeyNotFound:
+            pass
+        return osds
+
+    def get_osd_status_wise_counts(self, cluster_id, osds):
         osd_status_wise_counts = {
             'total': 0,
             'down': 0,
@@ -255,29 +330,16 @@ class CephPlugin(SDSPlugin):
             pm_consts.WARNING_ALERTS: 0,
             'near_full': 0
         }
-        if 'maps' in cluster_det:
-            osds = ast.literal_eval(
-                cluster_det.get(
-                    'maps', {}
-                ).get(
-                    'osd_map', {}
-                ).get(
-                    'data', {}
-                ).get('osds', '[]')
-            )
-            for osd in osds:
-                if 'up' not in osd.get('state'):
-                    osd_status_wise_counts['down'] = \
-                        osd_status_wise_counts['down'] + 1
-                osd_status_wise_counts['total'] = \
-                    osd_status_wise_counts['total'] + 1
+        for osd in osds:
+            if 'up' not in osd.get('state'):
+                osd_status_wise_counts['down'] = \
+                    osd_status_wise_counts['down'] + 1
+            osd_status_wise_counts['total'] = \
+                osd_status_wise_counts['total'] + 1
         crit_alerts, warn_alerts = parse_resource_alerts(
             'osd',
             pm_consts.CLUSTER,
-            cluster_id=cluster_det.get(
-                'TendrlContext',
-                {}
-            ).get('integration_id', '')
+            cluster_id=cluster_id
         )
         for osd_alert in crit_alerts:
             if (
@@ -294,73 +356,79 @@ class CephPlugin(SDSPlugin):
         ] = len(warn_alerts)
         return osd_status_wise_counts
 
-    def get_mon_status_wise_counts(self, cluster_det):
-        mon_status_wise_counts = {}
-        outside_quorum = ast.literal_eval(
-            cluster_det.get(
-                'maps', {}
-            ).get(
-                'mon_status', {}
-            ).get(
-                'data', {}
-            ).get(
-                'outside_quorum', '[]'
+    def get_mon_status_wise_counts(self, cluster_id):
+        mon_status_wise_counts = {
+            'outside_quorum': 0,
+            'total': 0
+        }
+        try:
+            mons = etcd_read_key(
+                '/clusters/%s/maps/mon_map/data/mons' % cluster_id
             )
-        )
-        mon_status_wise_counts['outside_quorum'] = len(outside_quorum)
-        mon_status_wise_counts['total'] = len(
-            ast.literal_eval(
-                cluster_det.get(
-                    'maps', {}
-                ).get(
-                    'mon_map', {}
-                ).get(
-                    'data', {}
-                ).get(
-                    'mons', "[]"
-                )
+            mons = ast.literal_eval(mons['mons'])
+            mon_status_wise_counts['total'] = len(mons)
+            outside_quorum = etcd_read_key(
+                '/clusters/%s/maps/mon_status/data/outside_quorum' % cluster_id
             )
-        )
+            outside_quorum = ast.literal_eval(outside_quorum['outside_quorum'])
+            mon_status_wise_counts['outside_quorum'] = len(outside_quorum)
+        except EtcdKeyNotFound:
+            pass
         return mon_status_wise_counts
 
-    def get_pg_counts(self, cluster_det):
-        pg_summary = cluster_det['maps']['pg_summary']['data']['all']
-        if isinstance(pg_summary, basestring):
-            pg_summary = ast.literal_eval(pg_summary)
-        return _calculate_pg_counters(
-            pg_summary
-        )
+    def get_pg_counts(self, cluster_id):
+        try:
+            pg_summary = etcd_read_key(
+                '/clusters/%s/maps/pg_summary/data/all' % cluster_id
+            )
+            if 'all' not in pg_summary:
+                return {}
+            pg_summary = pg_summary['all']
+            if isinstance(pg_summary, basestring):
+                pg_summary = ast.literal_eval(pg_summary)
+            return _calculate_pg_counters(
+                pg_summary
+            )
+        except EtcdKeyNotFound:
+            return {}
 
-    def get_cluster_summary(self, cluster_id, cluster_det):
+    def get_cluster_summary(self, cluster_id, cluster_name):
         ret_val = {}
+        pools = self.get_cluster_pools(cluster_id)
+        cluster_node_ids = central_store_util.get_cluster_node_ids(cluster_id)
+        rbds = self.get_rbds(cluster_id, pools)
+        osds = self.get_cluster_osds(cluster_id)
         ret_val['most_used_pools'] = self.get_most_used_pools(
-            cluster_det
+            cluster_name,
+            pools
         )
         ret_val['services_count'] = self.get_services_count(
-            cluster_det
+            cluster_node_ids
         )
         ret_val['most_used_rbds'] = self.get_most_used_rbds(
-            cluster_det
+            cluster_name,
+            rbds
         )
         ret_val['osd_status_wise_counts'] = self.get_osd_status_wise_counts(
-            cluster_det
+            cluster_id,
+            osds
         )
         ret_val['rbd_status_wise_counts'] = \
-            self.get_rbd_status_wise_counts(cluster_id, cluster_det)
+            self.get_rbd_status_wise_counts(cluster_id, rbds)
         ret_val['mon_status_wise_counts'] = \
-            self.get_mon_status_wise_counts(cluster_det)
+            self.get_mon_status_wise_counts(cluster_id)
         ret_val['pool_status_wise_counts'] = \
-            self.get_pool_status_wise_counts(cluster_id, cluster_det)
-        ret_val['pg_status_wise_counts'] = self.get_pg_counts(cluster_det)
+            self.get_pool_status_wise_counts(cluster_id, pools)
+        ret_val['pg_status_wise_counts'] = self.get_pg_counts(cluster_id)
         throughput = {}
         throughput['cluster_network'] = self.get_cluster_throughput(
             'cluster_network',
-            cluster_det.get('nodes', {}),
+            central_store_util.get_cluster_node_contexts(cluster_id),
             cluster_id
         )
         throughput['public_network'] = self.get_cluster_throughput(
             'public_network',
-            cluster_det.get('nodes', {}),
+            central_store_util.get_cluster_node_contexts(cluster_id),
             cluster_id
         )
         ret_val['throughput'] = throughput
@@ -583,14 +651,16 @@ class CephPlugin(SDSPlugin):
             rbd_critical_alerts
         return rbd_status_wise_counts
 
-    def compute_system_summary(self, cluster_summaries, clusters):
+    def compute_system_summary(self, cluster_summaries):
         try:
             SystemSummary(
                 utilization=self.get_system_utilization(cluster_summaries),
                 hosts_count=self.get_system_host_status_wise_counts(
                     cluster_summaries
                 ),
-                cluster_count=self.get_clusters_status_wise_counts(clusters),
+                cluster_count=self.get_clusters_status_wise_counts(
+                    cluster_summaries
+                ),
                 sds_det={
                     'mon_status_wise_counts': self.get_system_mon_status_wise_counts(
                         cluster_summaries

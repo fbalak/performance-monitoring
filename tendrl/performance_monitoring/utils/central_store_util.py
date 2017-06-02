@@ -172,10 +172,13 @@ def get_node_alert_ids(node_id=None):
 
 def get_node_alerts(node_id):
     alert_root = '/alerting/nodes/%s' % node_id
-    node_alerts = read(alert_root)
     node_alerts_arr = []
-    for alert_id, node_alert in node_alerts.iteritems():
-        node_alerts_arr.append(node_alert)
+    try:
+        node_alerts = read(alert_root)
+        for alert_id, node_alert in node_alerts.iteritems():
+            node_alerts_arr.append(node_alert)
+    except EtcdKeyNotFound:
+        pass
     return node_alerts_arr
 
 
@@ -369,6 +372,12 @@ def get_cluster_node_ids(cluster_id):
         return cluster_nodes
 
 
+def get_cluster_name(cluster_id):
+    return NS._int.client.read(
+        '/clusters/%s/TendrlContext/cluster_name' % cluster_id
+    ).value
+
+
 def get_node_sds_name(node_id):
     sds_name = ''
     try:
@@ -391,6 +400,20 @@ def get_node_cluster_id(node_id):
     return cluster_id
 
 
+def get_cluster_node_contexts(cluster_id):
+    node_contexts = {}
+    node_ids = get_cluster_node_ids(cluster_id)
+    for node_id in node_ids:
+        try:
+            node_context = read(
+                '/nodes/%s/NodeContext' % node_id
+            )
+            node_contexts[node_id] = node_context
+        except EtcdKeyNotFound:
+            continue
+    return node_contexts
+
+
 def get_node_names_in_cluster(cluster_id):
     ret_val = []
     nodes = read('/clusters/%s/nodes' % cluster_id)
@@ -398,3 +421,8 @@ def get_node_names_in_cluster(cluster_id):
         ret_val.append(node_det.get('NodeContext', {}).get('fqdn'))
     return ret_val
 
+
+def get_cluster_sds_name(cluster_id):
+    return NS._int.client.read(
+        '/clusters/%s/TendrlContext/sds_name' % cluster_id
+    ).value
