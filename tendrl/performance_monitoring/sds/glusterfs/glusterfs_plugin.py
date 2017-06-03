@@ -194,7 +194,7 @@ class GlusterFSPlugin(SDSPlugin):
         except EtcdKeyNotFound:
             pass
         volume_status_wise_counts['degraded'] = \
-            int(volumes_up_degraded)
+            int(volumes_up_degraded or 0)
         crit_alerts, warn_alerts = parse_resource_alerts(
             'volume',
             pm_consts.CLUSTER,
@@ -292,7 +292,7 @@ class GlusterFSPlugin(SDSPlugin):
             ).value
         except EtcdKeyNotFound:
             pass
-        ret_val['connection_active'] = connection_active
+        ret_val['connection_active'] = connection_active or 0
         connection_count = 0
         try:
             connection_count = NS._int.client.read(
@@ -300,7 +300,7 @@ class GlusterFSPlugin(SDSPlugin):
             ).value
         except EtcdKeyNotFound:
             pass
-        ret_val['connection_count'] = connection_count
+        ret_val['connection_count'] = connection_count or 0
         return ret_val
 
     def get_system_client_connection_counts(self, cluster_summaries):
@@ -340,11 +340,13 @@ class GlusterFSPlugin(SDSPlugin):
                             int(count)
                 brick_critical_alerts = \
                     brick_critical_alerts + cluster_brick_count.get(
-                        pm_consts.CRITICAL_ALERTS
+                        pm_consts.CRITICAL_ALERTS,
+                        0
                     )
                 brick_warning_alerts = \
                     brick_warning_alerts + cluster_brick_count.get(
-                        pm_consts.WARNING_ALERTS
+                        pm_consts.WARNING_ALERTS,
+                        0
                     )
         brick_status_wise_counts[pm_consts.WARNING_ALERTS] = \
             brick_warning_alerts
@@ -386,11 +388,13 @@ class GlusterFSPlugin(SDSPlugin):
                             int(count)
                 volume_critical_alerts = \
                     volume_critical_alerts + cluster_volume_count.get(
-                        pm_consts.CRITICAL_ALERTS
+                        pm_consts.CRITICAL_ALERTS,
+                        0
                     )
                 volume_warning_alerts = \
                     volume_warning_alerts + cluster_volume_count.get(
-                        pm_consts.WARNING_ALERTS
+                        pm_consts.WARNING_ALERTS,
+                        0
                     )
         volume_status_wise_counts[pm_consts.WARNING_ALERTS] = \
             volume_warning_alerts
