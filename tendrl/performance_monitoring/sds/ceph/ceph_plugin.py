@@ -690,7 +690,7 @@ class CephPlugin(SDSPlugin):
         except Exception as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": "Exception caught computing system "
                                         "summary.",
@@ -755,7 +755,7 @@ class CephPlugin(SDSPlugin):
         except Exception as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": "Exception caught computing node osd "
                                         "counts",

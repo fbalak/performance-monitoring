@@ -330,7 +330,7 @@ class SDSMonitoringManager(object):
                 except Exception as ex:
                     Event(
                         ExceptionMessage(
-                            priority="error",
+                            priority="debug",
                             publisher=NS.publisher_id,
                             payload={
                                 "message": 'Failed to fetch cluster summary'
@@ -348,7 +348,7 @@ class SDSMonitoringManager(object):
             except Exception as ex:
                 Event(
                     ExceptionMessage(
-                        priority="error",
+                        priority="debug",
                         publisher=NS.publisher_id,
                         payload={
                             "message": 'Failed to fetch %s system summary' % (
@@ -370,7 +370,7 @@ class SDSMonitoringManager(object):
         except Exception as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": 'Failed to configure monitoring for '
                                         'cluster %s as tendrl context could '
@@ -385,7 +385,7 @@ class SDSMonitoringManager(object):
                 return plugin.configure_monitoring(sds_tendrl_context)
         Event(
             Message(
-                priority="error",
+                priority="debug",
                 publisher=NS.publisher_id,
                 payload={"message": 'No plugin defined for %s. Hence cannot '
                                     'configure it' %

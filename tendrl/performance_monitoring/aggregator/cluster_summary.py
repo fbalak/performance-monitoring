@@ -37,7 +37,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             except EtcdKeyNotFound as ex:
                 Event(
                     ExceptionMessage(
-                        priority="error",
+                        priority="debug",
                         publisher=NS.publisher_id,
                         payload={
                             "message": 'Failed to fetch node-context from'
@@ -80,7 +80,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             except EtcdKeyNotFound as ex:
                 Event(
                     ExceptionMessage(
-                        priority="error",
+                        priority="debug",
                         publisher=NS.publisher_id,
                         payload={
                             "message": 'Error caught fetching node summary of'
@@ -161,7 +161,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             except Exception as ex:
                 Event(
                     ExceptionMessage(
-                        priority="error",
+                        priority="debug",
                         publisher=NS.publisher_id,
                         payload={
                             "message": 'Error caught computing summary.',

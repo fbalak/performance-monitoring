@@ -227,7 +227,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         except Exception as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": 'Exception caught while trying to '
                                         'save summary for node %s' % str(node),

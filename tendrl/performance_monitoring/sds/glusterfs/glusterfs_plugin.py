@@ -116,7 +116,7 @@ class GlusterFSPlugin(SDSPlugin):
         except Exception as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": "Exception caught computing brick "
                                         "status wise counts",
@@ -240,7 +240,7 @@ class GlusterFSPlugin(SDSPlugin):
         except Exception as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": "Exception caught computing most used "
                                         "bricks",
@@ -485,7 +485,7 @@ class GlusterFSPlugin(SDSPlugin):
         except Exception as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": "Exception caught computing system "
                                         "summary.",
