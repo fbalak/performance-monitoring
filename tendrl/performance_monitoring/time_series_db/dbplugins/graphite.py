@@ -89,7 +89,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
         except (ValueError, Exception) as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": 'Failed to fetch stats for metric %s'
                                         ' of %s using url. %s' %
@@ -155,7 +155,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
         except (ValueError, Exception) as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": 'Failed to fetch stats for metric %s'
                                         ' of %s using url. %s' %
@@ -221,7 +221,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
         except (ValueError, Exception) as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={
                         "message": 'Failed to fetch %s stats using url %s'
@@ -254,7 +254,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
         except (ValueError, Exception) as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": 'Failed to get metrics for %s.' %
                                         entity_name,

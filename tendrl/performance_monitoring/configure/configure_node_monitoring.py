@@ -28,7 +28,7 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
         except TendrlPerformanceMonitoringException as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": 'Failed to intialize monitoring '
                                         'configuration on nodes. ',
@@ -130,7 +130,7 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
         except (EtcdConnectionFailed, Exception) as e:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": 'Exception caught while watching '
                                         'alerts',

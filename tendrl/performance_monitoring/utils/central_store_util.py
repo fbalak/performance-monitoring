@@ -45,7 +45,7 @@ def get_configs():
             SyntaxError, EtcdException) as ex:
         Event(
             ExceptionMessage(
-                priority="error",
+                priority="debug",
                 publisher=NS.publisher_id,
                 payload={
                     "message": 'Fetching monitoring configurations failed.',
