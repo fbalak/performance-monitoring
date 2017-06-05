@@ -643,7 +643,7 @@ class TendrlPerformanceManager(object):
         except (ValueError, TendrlPerformanceMonitoringException) as ex:
             Event(
                 ExceptionMessage(
-                    priority="error",
+                    priority="debug",
                     publisher=NS.publisher_id,
                     payload={"message": 'Failed to start the api server.',
                              "exception": ex
@@ -676,7 +676,7 @@ def main():
     def terminate(sig, frame):
         Event(
             Message(
-                priority="error",
+                priority="debug",
                 publisher=NS.publisher_id,
                 payload={"message": "Signal handler: stopping"}
             )
