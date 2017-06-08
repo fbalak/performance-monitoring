@@ -146,11 +146,12 @@ class CephPlugin(SDSPlugin):
         nw_node_interfaces = []
         try:
             nw_subnet = etcd_read_key(
-                '/clusters/%s/maps/config/data/%s' % (
-                    cluster_id,
-                    nw_type
+                '/clusters/%s/maps/config/data' % (
+                    cluster_id
                 )
-            )[nw_type]
+            )
+            nw_subnet = json.loads(nw_subnet.get('data', '{}'))
+            nw_subnet = nw_subnet.get(nw_type, '')
             if nw_subnet:
                 nw_subnet = nw_subnet.replace('/', '_')
                 networks = etcd_read_key(
