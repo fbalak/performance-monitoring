@@ -1,5 +1,6 @@
 import ast
 from etcd import EtcdKeyNotFound
+import json
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
@@ -311,13 +312,11 @@ class CephPlugin(SDSPlugin):
     def get_cluster_osds(self, cluster_id):
         osds = []
         try:
-            etcd_osds = etcd_read_key(
-                '/clusters/%s/maps/osd_map/data/osds' % cluster_id
+            osd_data = etcd_read_key(
+                '/clusters/%s/maps/osd_map' % cluster_id
             )
-            etcd_osds = etcd_osds.get('osds')
-            osds = ast.literal_eval(
-                etcd_osds
-            )
+            osd_data = json.loads(osd_data['data'])
+            osds = osd_data.get('osds')
         except EtcdKeyNotFound:
             pass
         return osds
@@ -363,14 +362,16 @@ class CephPlugin(SDSPlugin):
         }
         try:
             mons = etcd_read_key(
-                '/clusters/%s/maps/mon_map/data/mons' % cluster_id
+                '/clusters/%s/maps/mon_map/data' % cluster_id
             )
-            mons = ast.literal_eval(mons['mons'])
+            mons = json.loads(mons.get('data', '{}'))
+            mons = mons['mons']
             mon_status_wise_counts['total'] = len(mons)
             outside_quorum = etcd_read_key(
-                '/clusters/%s/maps/mon_status/data/outside_quorum' % cluster_id
+                '/clusters/%s/maps/mon_status/data' % cluster_id
             )
-            outside_quorum = ast.literal_eval(outside_quorum['outside_quorum'])
+            outside_quorum = json.loads(outside_quorum.get('data', '{}'))
+            outside_quorum = outside_quorum.get('outside_quorum', [])
             mon_status_wise_counts['outside_quorum'] = len(outside_quorum)
         except EtcdKeyNotFound:
             pass
@@ -379,8 +380,9 @@ class CephPlugin(SDSPlugin):
     def get_pg_counts(self, cluster_id):
         try:
             pg_summary = etcd_read_key(
-                '/clusters/%s/maps/pg_summary/data/all' % cluster_id
+                '/clusters/%s/maps/pg_summary/data' % cluster_id
             )
+            pg_summary = json.loads(pg_summary.get('data', '{}'))
             if 'all' not in pg_summary:
                 return {}
             pg_summary = pg_summary['all']
