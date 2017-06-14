@@ -25,7 +25,6 @@ class GlusterFSPlugin(SDSPlugin):
             'tendrl-gluster-integration',
             'glusterd'
         ])
-        self.configured_nodes = {}
 
     def configure_monitoring(self, sds_tendrl_context):
         configs = []
@@ -48,51 +47,26 @@ class GlusterFSPlugin(SDSPlugin):
                     plugin_config = ast.literal_eval(
                         plugin_config.encode('ascii', 'ignore')
                     )
-                is_configured = True
-                if node_id not in self.configured_nodes:
-                    self.configured_nodes[node_id] = [plugin]
-                    is_configured = False
-                if (
-                    "tendrl_%sfs_%s" % (self.name, plugin) not in
-                    self.configured_nodes[node_id]
-                ):
-                    node_plugins = self.configured_nodes[node_id]
-                    node_plugins.append("tendrl_%sfs_%s" % (self.name, plugin))
-                    self.configured_nodes[node_id] = node_plugins
-                    is_configured = False
-                if not is_configured:
-                    plugin_config['cluster_id'] = \
-                        sds_tendrl_context['integration_id']
-                    plugin_config['cluster_name'] = \
-                        sds_tendrl_context['cluster_name']
-                    configs.append({
-                        'plugin': "tendrl_%sfs_%s" % (self.name, plugin),
-                        'plugin_conf': plugin_config,
-                        'node_id': node_id,
-                        'fqdn': sds_node_context['fqdn']
-                    })
-            is_configured = True
-            if (
-                "%sfs_peer_network_throughput" % (self.name) not in
-                    self.configured_nodes[node_id]
-            ):
-                node_plugins = self.configured_nodes[node_id]
-                node_plugins.append(
-                    "%sfs_peer_network_throughput" % (self.name)
-                )
-                self.configured_nodes[node_id] = node_plugins
-                is_configured = False
-            if not is_configured:
+                plugin_config['cluster_id'] = \
+                    sds_tendrl_context['integration_id']
+                plugin_config['cluster_name'] = \
+                    sds_tendrl_context['cluster_name']
                 configs.append({
-                    'plugin': "tendrl_%sfs_peer_network_throughput" % (
-                        self.name
-                    ),
-                    'plugin_conf': {
-                        'peer_name': sds_node_context['fqdn']
-                    },
+                    'plugin': "tendrl_%sfs_%s" % (self.name, plugin),
+                    'plugin_conf': plugin_config,
                     'node_id': node_id,
                     'fqdn': sds_node_context['fqdn']
                 })
+            configs.append({
+                'plugin': "tendrl_%sfs_peer_network_throughput" % (
+                    self.name
+                ),
+                'plugin_conf': {
+                    'peer_name': sds_node_context['fqdn']
+                },
+                'node_id': node_id,
+                'fqdn': sds_node_context['fqdn']
+            })
         return configs
 
     def get_brick_status_wise_counts(self, cluster_id, volumes_det):

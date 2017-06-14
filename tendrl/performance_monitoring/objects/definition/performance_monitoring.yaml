@@ -67,4 +67,18 @@ namespace.performance_monitoring:
       value: monitoring/summary/system/$SystemSummary.sds_type
       list: monitoring/summary/system
       help: "System Summary"
+    NodeMonitoringPlugin:
+      attrs:
+        plugin_name:
+          type: String
+        node_id:
+          type: String
+        job_id:
+          type: String
+        time_stamp:
+          type: String
+      enabled: true
+      value: monitoring/plugin_configurations/nodes/$NodeMonitoringPlugin.node_id/$NodeMonitoringPlugin.plugin_name
+      list: monitoring/plugin_configurations/nodes/$NodeMonitoringPlugin.node_id
+      help: "Monitoring plugin configurations on node"
 tendrl_schema_version: 0.3
