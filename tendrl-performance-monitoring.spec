@@ -48,6 +48,7 @@ install -Dm 0644 etc/tendrl/performance-monitoring/graphite-web.conf.sample $RPM
 install -Dm 0644 etc/tendrl/performance-monitoring/carbon.conf.sample $RPM_BUILD_ROOT%{_sysconfdir}/performance-monitoring/carbon.conf
 
 %post
+systemctl enable tendrl-performance-monitoring
 %systemd_post tendrl-performance-monitoring.service
 if [ $1 -eq 1 ] ; then
     mv /etc/carbon/carbon.conf /etc/carbon/carbon.conf.%{name}
