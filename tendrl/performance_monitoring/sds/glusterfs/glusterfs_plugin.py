@@ -1,4 +1,5 @@
 import ast
+import copy
 from etcd import EtcdKeyNotFound
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -47,13 +48,14 @@ class GlusterFSPlugin(SDSPlugin):
                     plugin_config = ast.literal_eval(
                         plugin_config.encode('ascii', 'ignore')
                     )
-                plugin_config['cluster_id'] = \
+                p_conf = copy.deepcopy(plugin_config)
+                p_conf['cluster_id'] = \
                     sds_tendrl_context['integration_id']
-                plugin_config['cluster_name'] = \
+                p_conf['cluster_name'] = \
                     sds_tendrl_context['cluster_name']
                 configs.append({
                     'plugin': "tendrl_%sfs_%s" % (self.name, plugin),
-                    'plugin_conf': plugin_config,
+                    'plugin_conf': p_conf,
                     'node_id': node_id,
                     'fqdn': sds_node_context['fqdn']
                 })
