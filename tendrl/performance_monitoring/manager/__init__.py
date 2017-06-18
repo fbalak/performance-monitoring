@@ -102,7 +102,7 @@ def get_clusterutilization(cluster_id, utiliation_type):
             )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS._int.client.read('/clusters/%s' % cluster_id)
+        central_store_util.read_key('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
@@ -190,7 +190,7 @@ def get_cluster_iops(cluster_id):
             )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS._int.client.read('/clusters/%s' % cluster_id)
+        central_store_util.read_key('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.get_plugin().get_metric_stats(
                 entity_name,
@@ -240,7 +240,7 @@ def get_clusterthroughput(cluster_id, network_type):
             )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS._int.client.read('/clusters/%s' % cluster_id)
+        central_store_util.read_key('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\

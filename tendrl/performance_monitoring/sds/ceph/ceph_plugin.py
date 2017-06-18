@@ -145,7 +145,7 @@ class CephPlugin(SDSPlugin):
     def get_cluster_pool_ids(self, cluster_id):
         pools = []
         try:
-            etcd_pools = NS._int.client.read(
+            etcd_pools = central_store_util.read_key(
                 '/clusters/%s/Pools/' % cluster_id
             )
             for etcd_pool in etcd_pools.leaves:
@@ -230,7 +230,7 @@ class CephPlugin(SDSPlugin):
         rbd_names = {}
         for pool_id in pool_ids:
             try:
-                etcd_pool_rbds = NS._int.client.read(
+                etcd_pool_rbds = central_store_util.read_key(
                     '/clusters/%s/Pools/%s/Rbds' % (
                         cluster_id,
                         pool_id

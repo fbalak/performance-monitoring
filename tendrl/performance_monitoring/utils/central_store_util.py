@@ -3,7 +3,7 @@ from etcd import EtcdException
 from etcd import EtcdKeyNotFound
 import json
 from ruamel import yaml
-
+import time
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring.exceptions \
@@ -16,12 +16,35 @@ from tendrl.performance_monitoring import constants as \
     pm_consts
 
 
+def read_key(key):
+    try:
+        return NS._int.client.read(key, quorum=True)
+    except (AttributeError, EtcdConnectionFailed, EtcdException) as ex:
+        if type(ex) == EtcdKeyNotFound:
+            raise ex
+        else:
+            try:
+                NS._int.reconnect()
+                return NS._int.client.read(key, quorum=True)
+            except (AttributeError, EtcdException) as ex:
+                raise ex
+
+
 # this function can return json for any etcd key
 def read(key):
     result = {}
-    job = NS._int.client.read(key)
+    job = {}
+    try:
+        job = read_key(key)
+    except EtcdKeyNotFound:
+        pass
+    except TendrlPerformanceMonitoringException as ex:
+        raise ex
     if hasattr(job, 'leaves'):
         for item in job.leaves:
+            if key == item.key:
+                result[item.key.split("/")[-1]] = item.value
+                return result
             if item.dir is True:
                 result[item.key.split("/")[-1]] = read(item.key)
             else:
@@ -36,7 +59,7 @@ def get_configs():
     #  /_tendrl/config/performance_monitoring
     try:
         configs = ''
-        conf = NS._int.client.read(
+        conf = read_key(
             '_NS/performance_monitoring/config'
         )
         configs = conf.value
@@ -62,7 +85,7 @@ def get_configs():
 
 def get_node_last_seen_at(node_id):
     try:
-        return NS._int.client.read(
+        return read_key(
             '/monitoring/nodes/%s/last_seen_at' % node_id
         ).value
     except EtcdKeyNotFound:
@@ -72,7 +95,7 @@ def get_node_last_seen_at(node_id):
 def get_node_name_from_id(node_id):
     try:
         node_name_path = '/nodes/%s/NodeContext/fqdn' % node_id
-        return NS._int.client.read(node_name_path).value
+        return read_key(node_name_path).value
     except (
         EtcdKeyNotFound,
         ValueError,
@@ -85,7 +108,7 @@ def get_node_name_from_id(node_id):
 
 def get_node_role(node_id):
     try:
-        return NS._int.client.read(
+        return read_key(
             '/nodes/%s/NodeContext/tags' % node_id
         ).value
     except EtcdKeyNotFound as ex:
@@ -99,7 +122,7 @@ def get_node_role(node_id):
 
 def get_node_cluster_name(node_id):
     try:
-        return NS._int.client.read(
+        return read_key(
             '/nodes/%s/TendrlContext/cluster_name' % node_id
         ).value
     except EtcdKeyNotFound as ex:
@@ -114,7 +137,7 @@ def get_node_cluster_name(node_id):
 def get_cluster_ids():
     try:
         cluster_ids = []
-        clusters_etcd = NS._int.client.read('/clusters')
+        clusters_etcd = read_key('/clusters')
         for cluster in clusters_etcd.leaves:
             cluster_key_contents = cluster.key.split('/')
             if len(cluster_key_contents) == 3:
@@ -134,7 +157,7 @@ def get_cluster_ids():
 def get_node_ids():
     try:
         node_ids = []
-        nodes_etcd = NS._int.client.read('/nodes')
+        nodes_etcd = read_key('/nodes')
         for node in nodes_etcd.leaves:
             node_key_contents = node.key.split('/')
             if len(node_key_contents) == 3:
@@ -154,7 +177,7 @@ def get_node_ids():
 def get_node_alert_ids(node_id=None):
     alert_ids = []
     try:
-        alerts = NS._int.client.read(
+        alerts = read_key(
             '/alerting/nodes/%s' % node_id
         )
         for alert in alerts.leaves:
@@ -292,7 +315,7 @@ def get_cluster_iops(
                     NS.time_series_db_manager.get_plugin().get_delimeter(),
                     1
                 )
-            NS._int.client.read('/clusters/%s' % cluster_id)
+            read_key('/clusters/%s' % cluster_id)
             cluster_iops = NS.time_series_db_manager.get_plugin(
             ).get_metric_stats(
                 entity_name,
@@ -334,14 +357,14 @@ def get_cluster_iops(
 def get_nodes_details():
     nodes_dets = []
     try:
-        nodes = NS._int.client.read('/nodes/')
+        nodes = read_key('/nodes/')
         for node in nodes.leaves:
             if node.key.startswith('/nodes/'):
                 node_id = (
                     node.key.split('/')[2]
                 ).encode('ascii', 'ignore')
                 fqdn = (
-                    NS._int.client.read(
+                    read_key(
                         '/nodes/%s/NodeContext/fqdn' % (node_id)
                     ).value
                 ).encode('ascii', 'ignore')
@@ -354,7 +377,7 @@ def get_nodes_details():
 
 
 def get_node_selinux_mode(node_id):
-    return NS._int.client.read(
+    return read_key(
         'nodes/%s/Os/selinux_mode' % node_id
     ).value
 
@@ -362,7 +385,7 @@ def get_node_selinux_mode(node_id):
 def get_cluster_node_ids(cluster_id):
     cluster_nodes = []
     try:
-        nodes = NS._int.client.read(
+        nodes = read_key(
             '/clusters/%s/nodes' % cluster_id
         )
         for node in nodes.leaves:
@@ -375,13 +398,13 @@ def get_cluster_node_ids(cluster_id):
 
 
 def get_cluster_name(cluster_id):
-    return NS._int.client.read(
+    return read_key(
         '/clusters/%s/TendrlContext/cluster_name' % cluster_id
     ).value
 
 
 def get_volume_name(cluster_id, vol_id):
-    return NS._int.client.read(
+    return read_key(
         '/clusters/%s/Volumes/%s/name' % (
             cluster_id,
             vol_id
@@ -392,7 +415,7 @@ def get_volume_name(cluster_id, vol_id):
 def get_node_sds_name(node_id):
     sds_name = ''
     try:
-        sds_name = NS._int.client.read(
+        sds_name = read_key(
             '/nodes/%s/TendrlContext/sds_name' % node_id
         ).value
     except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
@@ -403,7 +426,7 @@ def get_node_sds_name(node_id):
 def get_node_cluster_id(node_id):
     cluster_id = ''
     try:
-        cluster_id = NS._int.client.read(
+        cluster_id = read_key(
             '/nodes/%s/TendrlContext/integration_id' % node_id
         ).value
     except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
@@ -434,6 +457,6 @@ def get_node_names_in_cluster(cluster_id):
 
 
 def get_cluster_sds_name(cluster_id):
-    return NS._int.client.read(
+    return read_key(
         '/clusters/%s/TendrlContext/sds_name' % cluster_id
     ).value

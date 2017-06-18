@@ -105,7 +105,7 @@ class GlusterFSPlugin(SDSPlugin):
     def get_cluster_volume_ids(self, cluster_id):
         volume_ids = []
         try:
-            etcd_volume_ids = NS._int.client.read(
+            etcd_volume_ids = central_store_util.read_key(
                 '/clusters/%s/Volumes' % cluster_id
             )
         except EtcdKeyNotFound:
@@ -150,7 +150,7 @@ class GlusterFSPlugin(SDSPlugin):
                 volume_status_wise_counts['total'] + 1
         volumes_up_degraded = 0
         try:
-            volumes_up_degraded = NS._int.client.read(
+            volumes_up_degraded = central_store_util.read_key(
                 '/clusters/%s/GlobalDetails/volume_up_degraded' % cluster_id
             ).value
         except EtcdKeyNotFound:
@@ -185,7 +185,7 @@ class GlusterFSPlugin(SDSPlugin):
     def get_cluster_bricks(self, cluster_id):
         ret_val = {}
         try:
-            etcd_bricks = NS._int.client.read(
+            etcd_bricks = central_store_util.read_key(
                 '/clusters/%s/Bricks/all' % cluster_id
             )
         except EtcdKeyNotFound:
@@ -295,7 +295,7 @@ class GlusterFSPlugin(SDSPlugin):
         )
         connection_active = 0
         try:
-            connection_active = NS._int.client.read(
+            connection_active = central_store_util.read_key(
                 '/clusters/%s/GlobalDetails/connection_active' % cluster_id
             ).value
         except EtcdKeyNotFound:
@@ -303,7 +303,7 @@ class GlusterFSPlugin(SDSPlugin):
         ret_val['connection_active'] = connection_active or 0
         connection_count = 0
         try:
-            connection_count = NS._int.client.read(
+            connection_count = central_store_util.read_key(
                 '/clusters/%s/GlobalDetails/connection_count' % cluster_id
             ).value
         except EtcdKeyNotFound:
