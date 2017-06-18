@@ -6,6 +6,8 @@ from tendrl.commons.message import ExceptionMessage
 from tendrl.commons.message import Message
 from tendrl.performance_monitoring import constants as \
     pm_consts
+from tendrl.performance_monitoring.exceptions \
+    import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
@@ -117,10 +119,7 @@ class GlusterFSPlugin(SDSPlugin):
 
     def get_cluster_volumes(self, cluster_id):
         volumes = {}
-        try:
-            volume_ids = self.get_cluster_volume_ids(cluster_id)
-        except EtcdKeyNotFound:
-            return volumes
+        volume_ids = self.get_cluster_volume_ids(cluster_id)
         for volume_id in volume_ids:
             try:
                 volume = etcd_read_key(
@@ -144,7 +143,7 @@ class GlusterFSPlugin(SDSPlugin):
         }
         # Needs to be tested
         for vol_id, vol_det in volumes.iteritems():
-            if 'Started' not in vol_det.get('status'):
+            if 'Started' not in vol_det.get('status', ''):
                 volume_status_wise_counts['down'] = \
                     volume_status_wise_counts['down'] + 1
             volume_status_wise_counts['total'] = \
@@ -238,8 +237,25 @@ class GlusterFSPlugin(SDSPlugin):
         if not bricks:
             return brick_utilizations
         for brick_path, brick_det in bricks.iteritems():
-            if 'utilization' in brick_det:
+            if (
+                'utilization' in brick_det and
+                'used_percent' in brick_det['utilization']
+            ):
                 brick_utilizations.append(brick_det['utilization'])
+            else:
+                Event(
+                    ExceptionMessage(
+                        priority="debug",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": "No utilization info for brick "
+                            "%s" % brick_path,
+                            "exception": TendrlPerformanceMonitoringException(
+                                'No utilization info for brick %s' % brick_path
+                            )
+                        }
+                    )
+                )
         brick_utilizations = sorted(
             brick_utilizations,
             key=lambda k: k['used_percent']
@@ -474,7 +490,13 @@ class GlusterFSPlugin(SDSPlugin):
                 },
                 sds_type=self.name
             ).save(update=False)
-        except Exception as ex:
+        except (
+            AttributeError,
+            ValueError,
+            TypeError,
+            KeyError,
+            TendrlPerformanceMonitoringException
+        ) as ex:
             Event(
                 ExceptionMessage(
                     priority="error",
@@ -487,19 +509,46 @@ class GlusterFSPlugin(SDSPlugin):
             )
 
     def get_node_brick_status_counts(self, node_id):
-        node_name = central_store_util.get_node_name_from_id(node_id)
-        ip_indexes = etcd_read_key('/indexes/ip')
-        node_ip = ''
-        for ip, indexed_node_id in ip_indexes.iteritems():
-            if node_id == indexed_node_id:
-                node_ip = ip
-                break
         brick_status_wise_counts = {
             'stopped': 0,
             'total': 0,
             pm_consts.WARNING_ALERTS: 0,
             pm_consts.CRITICAL_ALERTS: 0
         }
+        try:
+            node_name = central_store_util.get_node_name_from_id(node_id)
+        except EtcdKeyNotFound as ex:
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": "Error fetching node name for node "
+                        "%s" % node_id,
+                        "exception": ex
+                    }
+                )
+            )
+            return brick_status_wise_counts
+        try:
+            ip_indexes = etcd_read_key('/indexes/ip')
+        except EtcdKeyNotFound as ex:
+            Event(
+                ExceptionMessage(
+                    priority="error",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": "Error fetching ip indexes",
+                        "exception": ex
+                    }
+                )
+            )
+            return brick_status_wise_counts
+        node_ip = ''
+        for ip, indexed_node_id in ip_indexes.iteritems():
+            if node_id == indexed_node_id:
+                node_ip = ip
+                break
         try:
             cluster_id = central_store_util.get_node_cluster_id(
                 node_id
@@ -538,15 +587,21 @@ class GlusterFSPlugin(SDSPlugin):
             brick_status_wise_counts[
                 pm_consts.WARNING_ALERTS
             ] = count
-        except Exception as ex:
+        except (
+            TendrlPerformanceMonitoringException,
+            AttributeError,
+            ValueError,
+            KeyError
+        ) as ex:
             Event(
                 Message(
                     priority="info",
                     publisher=NS.publisher_id,
-                    payload={"message": "Exception caught fetching node brick"
-                                        " status wise counts",
-                             "exception": ex
-                             }
+                    payload={
+                        "message": "Exception caught fetching node brick"
+                        " status wise counts",
+                        "exception": ex
+                    }
                 )
             )
         return brick_status_wise_counts

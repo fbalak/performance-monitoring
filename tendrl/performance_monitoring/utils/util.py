@@ -1,5 +1,3 @@
-from etcd import EtcdConnectionFailed
-from etcd import EtcdException
 import json
 import math
 import pkgutil
@@ -73,7 +71,10 @@ def initiate_config_generation(node_det):
             node_id=node_det.get('node_id'),
             job_id=job_id
         ).save(update=False)
-    except (EtcdException, EtcdConnectionFailed, Exception) as ex:
+    except (
+        TendrlPerformanceMonitoringException,
+        AttributeError
+    ) as ex:
         raise TendrlPerformanceMonitoringException(
             'Failed to intiate monitoring configuration for plugin \
             %s on %s with parameters %s.Error %s' % (

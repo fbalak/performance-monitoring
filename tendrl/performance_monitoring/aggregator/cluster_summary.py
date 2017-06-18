@@ -34,7 +34,10 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                         node_id
                     )
                 )
-            except EtcdKeyNotFound as ex:
+            except (
+                EtcdKeyNotFound,
+                TendrlPerformanceMonitoringException
+            ) as ex:
                 Event(
                     ExceptionMessage(
                         priority="debug",
@@ -49,6 +52,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                         }
                     )
                 )
+                continue
             status = node_context.get('status')
             if status:
                 if status != 'UP':
@@ -59,6 +63,19 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 alerts = central_store_util.get_node_alerts(node_id)
             except EtcdKeyNotFound:
                 pass
+            except TendrlPerformanceMonitoringException as ex:
+                Event(
+                    ExceptionMessage(
+                        priority="debug",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Error fetching alerts for node %s' % (
+                                node_id
+                            ),
+                            "exception": ex
+                        }
+                    )
+                )
             for alert in alerts:
                 if alert.get('severity') == 'CRITICAL':
                     status_wise_count['crit_alert_count'] = \
@@ -77,7 +94,10 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                     '/monitoring/summary/nodes/%s' % node_id
                 )
                 node_summaries.append(node_summary)
-            except EtcdKeyNotFound as ex:
+            except (
+                EtcdKeyNotFound,
+                TendrlPerformanceMonitoringException
+            ) as ex:
                 Event(
                     ExceptionMessage(
                         priority="debug",
@@ -108,9 +128,26 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             return pm_consts.NOT_AVAILABLE
 
     def parse_cluster(self, cluster_id):
-        utilization = central_store_util.read(
-            '/clusters/%s/Utilization' % cluster_id
-        )
+        utilization = {}
+        try:
+            utilization = central_store_util.read(
+                '/clusters/%s/Utilization' % cluster_id
+            )
+        except (
+            EtcdKeyNotFound,
+            TendrlPerformanceMonitoringException
+        ) as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Utilization not available for cluster'
+                        ' %s.' % cluster_id,
+                        "exception": ex
+                    }
+                )
+            )
         used = 0
         total = 0
         percent_used = 0
@@ -124,6 +161,23 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             total = utilization.get('total')
         if utilization.get('pcnt_used'):
             percent_used = utilization.get('pcnt_used')
+        try:
+            sds_name = central_store_util.get_cluster_sds_name(cluster_id)
+        except (
+            EtcdKeyNotFound,
+            TendrlPerformanceMonitoringException
+        ) as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Error caught fetching sds name of'
+                        ' cluster %s.' % cluster_id,
+                        "exception": ex
+                    }
+                )
+            )
         return ClusterSummary(
             utilization={
                 'total': int(total),
@@ -132,7 +186,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             },
             iops=str(self.get_cluster_iops(cluster_id)),
             hosts_count=self.parse_host_count(cluster_id),
-            sds_type=central_store_util.get_cluster_sds_name(cluster_id),
+            sds_type=sds_name,
             node_summaries=self.cluster_nodes_summary(
                 cluster_id
             ),
@@ -155,7 +209,10 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                     cluster_summary.save(update=False)
                 except EtcdKeyNotFound:
                     pass
-                except Exception as ex:
+                except (
+                    TendrlPerformanceMonitoringException,
+                    AttributeError
+                ) as ex:
                     Event(
                         ExceptionMessage(
                             priority="debug",

@@ -1,5 +1,4 @@
 import datetime
-from etcd import EtcdConnectionFailed
 from etcd import EtcdKeyNotFound
 import gevent
 import math
@@ -184,7 +183,10 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             old_summary = old_summary.load()
         except EtcdKeyNotFound:
             pass
-        except (EtcdConnectionFailed, Exception) as ex:
+        except (
+            TendrlPerformanceMonitoringException,
+            AttributeError
+        ) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
@@ -204,9 +206,44 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             storage_usage = old_summary.storage_usage
         if swap_usage is None:
             swap_usage = old_summary.swap_usage
+        selinux_mode = ''
+        try:
+            selinux_mode = central_store_util.get_node_selinux_mode(
+                node
+            )
+        except (
+            EtcdKeyNotFound,
+            TendrlPerformanceMonitoringException
+        ):
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Selinux mode not available for node '
+                        '%s' % str(node),
+                        "exception": ex
+                    }
+                )
+            )
+        node_name = ''
+        try:
+            node_name = central_store_util.get_node_name_from_id(node)
+        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException) as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Node name of %s fetch failed '
+                        '%s' % str(node),
+                        "exception": ex
+                    }
+                )
+            )
         try:
             summary = NodeSummary(
-                name=central_store_util.get_node_name_from_id(node),
+                name=node_name,
                 node_id=node,
                 status=self.get_node_status(node),
                 role=central_store_util.get_node_role(node),
@@ -217,14 +254,12 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 memory_usage=memory_usage,
                 storage_usage=storage_usage,
                 swap_usage=swap_usage,
-                selinux_mode=central_store_util.get_node_selinux_mode(
-                    node
-                ),
+                selinux_mode=selinux_mode,
                 sds_det=sds_det,
                 alert_count=alert_count
             )
             summary.save(update=False)
-        except Exception as ex:
+        except (AttributeError, TendrlPerformanceMonitoringException) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",

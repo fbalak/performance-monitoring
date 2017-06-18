@@ -68,9 +68,7 @@ def get_nodestats(node_id, resource_name):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -121,9 +119,7 @@ def get_clusterutilization(cluster_id, utiliation_type):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -163,7 +159,7 @@ def get_cluster_latency(cluster_id):
             status=200,
             mimetype='application/json'
         )
-    except Exception as ex:
+    except TendrlPerformanceMonitoringException as ex:
         return Response(str(ex), status=500, mimetype='application/json')
 
 
@@ -209,9 +205,7 @@ def get_cluster_iops(cluster_id):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -263,9 +257,7 @@ def get_clusterthroughput(cluster_id, network_type):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -317,9 +309,7 @@ def get_sdsthroughput(sds_type, network_type):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -370,9 +360,7 @@ def get_sdsutilization(sds_type, utiliation_type):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -457,10 +445,8 @@ def get_clusters_iops():
         )
     except (
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         ValueError,
         SyntaxError,
-        etcd.EtcdException,
         TendrlPerformanceMonitoringException,
         TypeError
     ) as ex:
@@ -509,9 +495,7 @@ def get_stat_types(node_id):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -561,10 +545,8 @@ def get_node_summary():
         )
     except (
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         ValueError,
         SyntaxError,
-        etcd.EtcdException,
         TendrlPerformanceMonitoringException,
         TypeError
     ) as ex:
@@ -603,9 +585,7 @@ def get_nodeiopsstats(node_id):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:

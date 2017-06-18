@@ -1,5 +1,6 @@
 from abc import abstractmethod
 import ast
+from etcd import EtcdException
 from etcd import EtcdKeyNotFound
 import importlib
 import inspect
@@ -210,27 +211,71 @@ class SDSPlugin(object):
         return status_wise_count
 
     def get_node_services_count(self, node_id):
-        services = central_store_util.read('nodes/%s/Services' % node_id)
+        services = {}
+        try:
+            services = central_store_util.read('nodes/%s/Services' % node_id)
+        except EtcdKeyNotFound as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Failed to fetch services of '
+                        'node %s' % node_id,
+                        "exception": ex
+                    }
+                )
+            )
         return services
 
     def get_services_count(self, cluster_node_ids):
         node_service_counts = {}
         for node_id in cluster_node_ids:
-            services = central_store_util.read('nodes/%s/Services' % node_id)
+            try:
+                services = central_store_util.read(
+                    'nodes/%s/Services' % node_id
+                )
+            except EtcdKeyNotFound as ex:
+                Event(
+                    ExceptionMessage(
+                        priority="debug",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Failed to fetch services of '
+                            'node %s' % node_id,
+                            "exception": ex
+                        }
+                    )
+                )
+                continue
             for service_name, service_det in services.iteritems():
-                if service_name in self.supported_services:
-                    if service_name not in node_service_counts:
-                        service_counter = {'running': 0, 'not_running': 0}
-                    else:
-                        service_counter = node_service_counts[service_name]
-                    if service_det['exists'] == 'True':
-                        if service_det['running'] == 'True':
-                            service_counter['running'] = \
-                                service_counter['running'] + 1
+                try:
+                    if service_name in self.supported_services:
+                        if service_name not in node_service_counts:
+                            service_counter = {'running': 0, 'not_running': 0}
                         else:
-                            service_counter['not_running'] = \
-                                service_counter['not_running'] + 1
-                        node_service_counts[service_name] = service_counter
+                            service_counter = node_service_counts[service_name]
+                        if service_det['exists'] == 'True':
+                            if service_det['running'] == 'True':
+                                service_counter['running'] = \
+                                    service_counter['running'] + 1
+                            else:
+                                service_counter['not_running'] = \
+                                    service_counter['not_running'] + 1
+                            node_service_counts[service_name] = service_counter
+                except (ValueError, AttributeError, KeyError) as ex:
+                    Event(
+                        ExceptionMessage(
+                            priority="debug",
+                            publisher=NS.publisher_id,
+                            payload={
+                                "message": 'Failed to parse services of '
+                                'node %s' % node_id,
+                                "exception": ex
+                            }
+                        )
+                    )
+                    continue
         return node_service_counts
 
     def get_system_services_count(self, cluster_summaries):
@@ -325,40 +370,11 @@ class SDSMonitoringManager(object):
         sds_name = central_store_util.get_cluster_sds_name(cluster_id)
         for plugin in SDSPlugin.plugins:
             if plugin.name == sds_name:
-                try:
-                    return plugin.get_cluster_summary(cluster_id, cluster_name)
-                except Exception as ex:
-                    Event(
-                        ExceptionMessage(
-                            priority="debug",
-                            publisher=NS.publisher_id,
-                            payload={
-                                "message": 'Failed to fetch cluster summary'
-                                ' for cluster %s' % cluster_id,
-                                "exception": ex
-                            }
-                        )
-                    )
-                    return {}
+                return plugin.get_cluster_summary(cluster_id, cluster_name)
 
     def compute_system_summary(self, cluster_summaries):
         for plugin in SDSPlugin.plugins:
-            try:
-                plugin.compute_system_summary(cluster_summaries)
-            except Exception as ex:
-                Event(
-                    ExceptionMessage(
-                        priority="debug",
-                        publisher=NS.publisher_id,
-                        payload={
-                            "message": 'Failed to fetch %s system summary' % (
-                                plugin
-                            ),
-                            "exception": ex
-                        }
-                    )
-                )
-                continue
+            plugin.compute_system_summary(cluster_summaries)
 
     def configure_monitoring(self, integration_id):
         try:
@@ -367,16 +383,17 @@ class SDSMonitoringManager(object):
             )
         except EtcdKeyNotFound:
             return None
-        except Exception as ex:
+        except EtcdException as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
                     publisher=NS.publisher_id,
-                    payload={"message": 'Failed to configure monitoring for '
-                                        'cluster %s as tendrl context could '
-                                        'not be fetched.' % integration_id,
-                             "exception": ex
-                             }
+                    payload={
+                        "message": 'Failed to configure monitoring for '
+                        'cluster %s as tendrl context could '
+                        'not be fetched.' % integration_id,
+                        "exception": ex
+                    }
                 )
             )
             return
@@ -387,10 +404,10 @@ class SDSMonitoringManager(object):
             Message(
                 priority="debug",
                 publisher=NS.publisher_id,
-                payload={"message": 'No plugin defined for %s. Hence cannot '
-                                    'configure it' %
-                                    sds_tendrl_context['sds_name']
-                         }
+                payload={
+                    "message": 'No plugin defined for %s. Hence cannot '
+                    'configure it' % sds_tendrl_context['sds_name']
+                }
             )
         )
         return None

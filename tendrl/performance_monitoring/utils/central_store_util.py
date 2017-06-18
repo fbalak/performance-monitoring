@@ -41,8 +41,12 @@ def get_configs():
         )
         configs = conf.value
         return yaml.safe_load(configs)
-    except (EtcdKeyNotFound, EtcdConnectionFailed, ValueError,
-            SyntaxError, EtcdException) as ex:
+    except (
+        EtcdKeyNotFound,
+        ValueError,
+        SyntaxError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
         Event(
             ExceptionMessage(
                 priority="debug",
@@ -61,7 +65,7 @@ def get_node_last_seen_at(node_id):
         return NS._int.client.read(
             '/monitoring/nodes/%s/last_seen_at' % node_id
         ).value
-    except Exception:
+    except EtcdKeyNotFound:
         return None
 
 
@@ -71,10 +75,9 @@ def get_node_name_from_id(node_id):
         return NS._int.client.read(node_name_path).value
     except (
         EtcdKeyNotFound,
-        EtcdConnectionFailed,
         ValueError,
         SyntaxError,
-        EtcdException,
+        TendrlPerformanceMonitoringException,
         TypeError
     ) as ex:
         raise TendrlPerformanceMonitoringException(str(ex))
@@ -85,7 +88,7 @@ def get_node_role(node_id):
         return NS._int.client.read(
             '/nodes/%s/NodeContext/tags' % node_id
         ).value
-    except Exception as ex:
+    except EtcdKeyNotFound as ex:
         raise TendrlPerformanceMonitoringException(
             "Failed to fetch the role of node %s. Error %s" % (
                 node_id,
@@ -99,7 +102,7 @@ def get_node_cluster_name(node_id):
         return NS._int.client.read(
             '/nodes/%s/TendrlContext/cluster_name' % node_id
         ).value
-    except Exception as ex:
+    except EtcdKeyNotFound as ex:
         raise TendrlPerformanceMonitoringException(
             "Failed to fetch cluster name for node %s. Error: %s" % (
                 node_id,
@@ -163,10 +166,9 @@ def get_node_alert_ids(node_id=None):
     except EtcdKeyNotFound as ex:
         return alert_ids
     except (
-        EtcdConnectionFailed,
-        EtcdException
+        TendrlPerformanceMonitoringException
     ) as ex:
-        raise TendrlPerformanceMonitoringException(str(ex))
+        raise ex
     return alert_ids
 
 
@@ -191,7 +193,7 @@ def get_cluster_alerts(cluster_id):
         for alert_id, alert in c_alerts.iteritems():
             cluster_alerts.append(alert)
         return cluster_alerts
-    except Exception:
+    except EtcdKeyNotFound:
         return cluster_alerts
 
 
@@ -212,7 +214,7 @@ def get_cluster_summary(cluster_id):
             ):
                 del summary[key]
         return summary
-    except Exception as ex:
+    except (EtcdKeyNotFound, AttributeError, TypeError, ValueError) as ex:
         raise TendrlPerformanceMonitoringException(str(ex))
 
 
@@ -233,7 +235,7 @@ def get_system_summary(cluster_type):
             ):
                 del summary[key]
         return summary
-    except Exception as ex:
+    except (EtcdKeyNotFound, AttributeError, TypeError, ValueError) as ex:
         raise TendrlPerformanceMonitoringException(str(ex))
 
 
@@ -254,7 +256,7 @@ def get_node_summary(node_ids=None):
                 ):
                     del current_node_summary[key]
             summary.append(current_node_summary)
-        except EtcdKeyNotFound:
+        except (EtcdKeyNotFound, AttributeError, TypeError, ValueError):
             exs = "%s.Failed to fetch summary for node with id: %s" % (
                 exs,
                 node_id
@@ -393,7 +395,7 @@ def get_node_sds_name(node_id):
         sds_name = NS._int.client.read(
             '/nodes/%s/TendrlContext/sds_name' % node_id
         ).value
-    except (EtcdKeyNotFound, EtcdException):
+    except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
         pass
     return sds_name
 
@@ -404,7 +406,7 @@ def get_node_cluster_id(node_id):
         cluster_id = NS._int.client.read(
             '/nodes/%s/TendrlContext/integration_id' % node_id
         ).value
-    except (EtcdKeyNotFound, EtcdException):
+    except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
         pass
     return cluster_id
 

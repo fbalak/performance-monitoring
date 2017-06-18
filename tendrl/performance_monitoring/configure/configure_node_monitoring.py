@@ -123,7 +123,7 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                 gevent.sleep(0.1)
                 self.init_monitoring()
                 gevent.sleep(10)
-        except (EtcdConnectionFailed, Exception) as e:
+        except TendrlPerformanceMonitoringException as e:
             Event(
                 ExceptionMessage(
                     priority="debug",
