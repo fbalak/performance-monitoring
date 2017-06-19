@@ -11,6 +11,8 @@ from tendrl.performance_monitoring import constants as \
     pm_consts
 from tendrl.performance_monitoring.exceptions \
     import TendrlPerformanceMonitoringException
+from tendrl.performance_monitoring.objects.node_monitoring_plugin import \
+    NodeMonitoringPlugin
 import uuid
 import tendrl.performance_monitoring.utils.central_store_util \
     as central_store_util
@@ -38,6 +40,15 @@ def list_modules_in_package_path(package_path, prefix):
 
 def initiate_config_generation(node_det):
     try:
+        plugin = NodeMonitoringPlugin(
+            plugin_name=node_det['plugin'],
+            node_id=node_det.get('node_id')
+        )
+        if plugin.exists():
+            # More powers like fixed retrials can be added here.This is common
+            # point through which all monitoring plugin configuration jobs land
+            # into etcd and hence any action here is reflected to all of them.
+            return
         job_params = {
             'node_ids': [node_det.get('node_id')],
             "run": 'node_monitoring.flows.ConfigureCollectd',
@@ -51,11 +62,17 @@ def initiate_config_generation(node_det):
                 'Service.name': 'collectd',
             },
         }
+        job_id = str(uuid.uuid4())
         Job(
-            job_id=str(uuid.uuid4()),
+            job_id=job_id,
             status='new',
             payload=job_params,
         ).save()
+        NodeMonitoringPlugin(
+            plugin_name=node_det['plugin'],
+            node_id=node_det.get('node_id'),
+            job_id=job_id
+        ).save(update=False)
     except (EtcdException, EtcdConnectionFailed, Exception) as ex:
         raise TendrlPerformanceMonitoringException(
             'Failed to intiate monitoring configuration for plugin \

@@ -1,4 +1,5 @@
 import ast
+import copy
 from etcd import EtcdKeyNotFound
 import json
 from tendrl.commons.event import Event
@@ -28,7 +29,6 @@ class CephPlugin(SDSPlugin):
             'ceph-mon',
             'ceph-osd'
         ])
-        self.configured_nodes = {}
 
     def configure_monitoring(self, sds_tendrl_context):
         configs = []
@@ -54,92 +54,50 @@ class CephPlugin(SDSPlugin):
                         plugin_config = ast.literal_eval(
                             plugin_config.encode('ascii', 'ignore')
                         )
-                    is_configured = True
-                    if node_id not in self.configured_nodes:
-                        self.configured_nodes[node_id] = [
-                            "tendrl_%s_%s" % (self.name, plugin)
-                        ]
-                        is_configured = False
-                    if (
-                        "tendrl_%s_%s" % (self.name, plugin) not in
-                            self.configured_nodes.get(node_id, [])
-                    ):
-                        node_plugins = self.configured_nodes.get(node_id, [])
-                        node_plugins.append(
-                            "tendrl_%s_%s" % (self.name, plugin)
-                        )
-                        self.configured_nodes[node_id] = node_plugins
-                        is_configured = False
-                    if not is_configured:
-                        plugin_config['cluster_id'] = \
-                            sds_tendrl_context['integration_id']
-                        plugin_config['cluster_name'] = \
-                            sds_tendrl_context['cluster_name']
-                        configs.append({
-                            'plugin': "tendrl_%s_%s" % (self.name, plugin),
-                            'plugin_conf': plugin_config,
-                            'node_id': node_id,
-                            'fqdn': sds_node_context['fqdn']
-                        })
-                is_configured = True
-                if (
-                    "tendrl_ceph_cluster_iops" not in
-                        self.configured_nodes.get(node_id, [])
-                ):
-                    node_plugins = self.configured_nodes.get(node_id, [])
-                    node_plugins.append(
-                        "tendrl_ceph_cluster_iops"
-                    )
-                    self.configured_nodes[node_id] = node_plugins
-                    is_configured = False
-                if not is_configured:
-                    plugin_config = {
-                        'cluster_id': sds_tendrl_context['integration_id'],
-                        'cluster_name': sds_tendrl_context['cluster_name']
-                    }
+                    p_conf = copy.deepcopy(plugin_config)
+                    p_conf['cluster_id'] = \
+                        sds_tendrl_context['integration_id']
+                    p_conf['cluster_name'] = \
+                        sds_tendrl_context['cluster_name']
                     configs.append({
-                        'plugin': "tendrl_ceph_cluster_iops",
-                        'plugin_conf': plugin_config,
+                        'plugin': "tendrl_%s_%s" % (self.name, plugin),
+                        'plugin_conf': p_conf,
                         'node_id': node_id,
                         'fqdn': sds_node_context['fqdn']
                     })
-            is_configured = True
-            if (
-                "tendrl_ceph_node_network_throughput" not in
-                    self.configured_nodes.get(node_id, [])
-            ):
-                plugin_config = {}
-                plugin_config['cluster_network'] = ' '.join(
-                    self.get_nw_node_interfaces(
-                        node_id,
-                        'cluster_network',
-                        sds_tendrl_context['integration_id']
-                    )
+                plugin_config = {
+                    'cluster_id': sds_tendrl_context['integration_id'],
+                    'cluster_name': sds_tendrl_context['cluster_name']
+                }
+                configs.append({
+                    'plugin': "tendrl_ceph_cluster_iops",
+                    'plugin_conf': plugin_config,
+                    'node_id': node_id,
+                    'fqdn': sds_node_context['fqdn']
+                })
+            plugin_config = {}
+            plugin_config['cluster_network'] = ' '.join(
+                self.get_nw_node_interfaces(
+                    node_id,
+                    'cluster_network',
+                    sds_tendrl_context['integration_id']
                 )
-                plugin_config['public_network'] = ' '.join(
-                    self.get_nw_node_interfaces(
-                        node_id,
-                        'public_network',
-                        sds_tendrl_context['integration_id']
-                    )
+            )
+            plugin_config['public_network'] = ' '.join(
+                self.get_nw_node_interfaces(
+                    node_id,
+                    'public_network',
+                    sds_tendrl_context['integration_id']
                 )
-                if (
-                    plugin_config['cluster_network'] and
-                        plugin_config['public_network']
-                ):
-                    node_plugins = self.configured_nodes.get(node_id, [])
-                    node_plugins.append(
-                        "tendrl_ceph_node_network_throughput"
-                    )
-                    self.configured_nodes[node_id] = node_plugins
-                    configs.append({
-                        'plugin': "tendrl_%s_node_network_throughput" % (
-                            self.name
-                        ),
-                        'plugin_conf': plugin_config,
-                        'node_id': node_id,
-                        'fqdn': sds_node_context['fqdn']
-                    })
+            )
+            configs.append({
+                'plugin': "tendrl_%s_node_network_throughput" % (
+                    self.name
+                ),
+                'plugin_conf': plugin_config,
+                'node_id': node_id,
+                'fqdn': sds_node_context['fqdn']
+            })
         return configs
 
     def get_nw_node_interfaces(self, node_id, nw_type, cluster_id):
