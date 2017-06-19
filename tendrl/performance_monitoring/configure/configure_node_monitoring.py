@@ -17,14 +17,7 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
         try:
             node_dets = central_store_util.get_nodes_details()
             for node_det in node_dets:
-                if (
-                    node_det['node_id'] not in
-                    self.monitoring_config_init_nodes
-                ):
-                    self.init_monitoring_on_node(node_det)
-                    self.monitoring_config_init_nodes.append(
-                        node_det['node_id']
-                    )
+                self.init_monitoring_on_node(node_det)
         except TendrlPerformanceMonitoringException as ex:
             Event(
                 ExceptionMessage(
@@ -56,6 +49,9 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
             }
         )
         gevent.sleep(0.1)
+        time_series_db_server = NS.performance_monitoring.config.data[
+            'time_series_db_server'
+        ]
         initiate_config_generation(
             {
                 'node_id': node_det['node_id'],
@@ -65,7 +61,8 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                     'master_name': NS.performance_monitoring.config.data[
                         'master_name'],
                     'interval': NS.performance_monitoring.config.data[
-                        'interval']
+                        'interval'],
+                    'time_series_db_server': time_series_db_server
                 }
             }
         )
@@ -116,7 +113,6 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
     def __init__(self):
         super(ConfigureNodeMonitoring, self).__init__()
         try:
-            self.monitoring_config_init_nodes = []
             self._complete = gevent.event.Event()
         except TendrlPerformanceMonitoringException as ex:
             raise ex
