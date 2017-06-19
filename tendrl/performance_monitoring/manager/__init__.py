@@ -670,7 +670,11 @@ def main():
     NS.time_series_db_manager = TimeSeriesDBManager()
     NS.performance_monitoring.definitions.save()
     NS.performance_monitoring.config.save()
-
+    
+    if NS.config.data.get("with_internal_profiling", False):
+        from tendrl.commons import profiler
+        profiler.start()
+        
     tendrl_perf_manager = TendrlPerformanceManager()
 
     def terminate(sig, frame):
