@@ -1,15 +1,14 @@
-from etcd import EtcdConnectionFailed
 from etcd import EtcdException
 from etcd import EtcdKeyNotFound
 import json
 from ruamel import yaml
-import time
+import urllib3
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
-from tendrl.performance_monitoring.exceptions \
-    import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.cluster_summary \
     import ClusterSummary
+from tendrl.performance_monitoring.exceptions \
+    import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring import constants as \
@@ -19,7 +18,7 @@ from tendrl.performance_monitoring import constants as \
 def read_key(key):
     try:
         return NS._int.client.read(key, quorum=True)
-    except (AttributeError, EtcdConnectionFailed, EtcdException) as ex:
+    except (AttributeError, EtcdException) as ex:
         if type(ex) == EtcdKeyNotFound:
             raise ex
         else:
@@ -38,7 +37,7 @@ def read(key):
         job = read_key(key)
     except EtcdKeyNotFound:
         pass
-    except TendrlPerformanceMonitoringException as ex:
+    except (AttributeError, EtcdException) as ex:
         raise ex
     if hasattr(job, 'leaves'):
         for item in job.leaves:
@@ -65,10 +64,10 @@ def get_configs():
         configs = conf.value
         return yaml.safe_load(configs)
     except (
-        EtcdKeyNotFound,
+        EtcdException,
         ValueError,
         SyntaxError,
-        TendrlPerformanceMonitoringException
+        AttributeError
     ) as ex:
         Event(
             ExceptionMessage(
@@ -80,7 +79,7 @@ def get_configs():
                 }
             )
         )
-        raise TendrlPerformanceMonitoringException(str(ex))
+        raise ex
 
 
 def get_node_last_seen_at(node_id):
@@ -97,13 +96,13 @@ def get_node_name_from_id(node_id):
         node_name_path = '/nodes/%s/NodeContext/fqdn' % node_id
         return read_key(node_name_path).value
     except (
-        EtcdKeyNotFound,
+        AttributeError,
         ValueError,
         SyntaxError,
-        TendrlPerformanceMonitoringException,
+        EtcdException,
         TypeError
     ) as ex:
-        raise TendrlPerformanceMonitoringException(str(ex))
+        raise ex
 
 
 def get_node_role(node_id):
@@ -111,13 +110,8 @@ def get_node_role(node_id):
         return read_key(
             '/nodes/%s/NodeContext/tags' % node_id
         ).value
-    except EtcdKeyNotFound as ex:
-        raise TendrlPerformanceMonitoringException(
-            "Failed to fetch the role of node %s. Error %s" % (
-                node_id,
-                str(ex)
-            )
-        )
+    except (EtcdException, AttributeError) as ex:
+        raise ex
 
 
 def get_node_cluster_name(node_id):
@@ -125,13 +119,8 @@ def get_node_cluster_name(node_id):
         return read_key(
             '/nodes/%s/TendrlContext/cluster_name' % node_id
         ).value
-    except EtcdKeyNotFound as ex:
-        raise TendrlPerformanceMonitoringException(
-            "Failed to fetch cluster name for node %s. Error: %s" % (
-                node_id,
-                str(ex)
-            )
-        )
+    except (AttributeError, EtcdException) as ex:
+        raise ex
 
 
 def get_cluster_ids():
@@ -146,12 +135,13 @@ def get_cluster_ids():
     except EtcdKeyNotFound:
         return []
     except (
-        EtcdConnectionFailed,
+        AttributeError,
+        EtcdException,
         ValueError,
         SyntaxError,
         TypeError
     ) as ex:
-        raise TendrlPerformanceMonitoringException(str(ex))
+        raise ex
 
 
 def get_node_ids():
@@ -166,12 +156,13 @@ def get_node_ids():
     except EtcdKeyNotFound:
         return []
     except (
-        EtcdConnectionFailed,
+        AttributeError,
+        EtcdException,
         ValueError,
         SyntaxError,
         TypeError
     ) as ex:
-        raise TendrlPerformanceMonitoringException(str(ex))
+        raise ex
 
 
 def get_node_alert_ids(node_id=None):
@@ -189,7 +180,8 @@ def get_node_alert_ids(node_id=None):
     except EtcdKeyNotFound as ex:
         return alert_ids
     except (
-        TendrlPerformanceMonitoringException
+        AttributeError,
+        EtcdException
     ) as ex:
         raise ex
     return alert_ids
@@ -204,6 +196,8 @@ def get_node_alerts(node_id):
             node_alerts_arr.append(node_alert)
     except EtcdKeyNotFound:
         pass
+    except (AttributeError, EtcdException) as ex:
+        raise ex
     return node_alerts_arr
 
 
@@ -226,7 +220,7 @@ def get_cluster_summary(cluster_id):
             cluster_id=cluster_id
         )
         if not summary.exists():
-            raise TendrlPerformanceMonitoringException(
+            raise EtcdException(
                 "No summary found for cluster %s" % cluster_id
             )
         summary = summary.load().to_json()
@@ -238,7 +232,7 @@ def get_cluster_summary(cluster_id):
                 del summary[key]
         return summary
     except (EtcdKeyNotFound, AttributeError, TypeError, ValueError) as ex:
-        raise TendrlPerformanceMonitoringException(str(ex))
+        raise ex
 
 
 def get_system_summary(cluster_type):
@@ -247,7 +241,7 @@ def get_system_summary(cluster_type):
             sds_type=cluster_type
         )
         if not summary.exists():
-            raise TendrlPerformanceMonitoringException(
+            raise EtcdException(
                 "No clusters of type %s found" % cluster_type
             )
         summary = summary.load().to_json()
@@ -259,7 +253,7 @@ def get_system_summary(cluster_type):
                 del summary[key]
         return summary
     except (EtcdKeyNotFound, AttributeError, TypeError, ValueError) as ex:
-        raise TendrlPerformanceMonitoringException(str(ex))
+        raise ex
 
 
 def get_node_summary(node_ids=None):
@@ -338,7 +332,13 @@ def get_cluster_iops(
                     'datapoints': []
                 }
                 iops.append(json_io)
-        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException) as ex:
+        except (
+            ValueError,
+            EtcdException,
+            AttributeError,
+            urllib3.exceptions.HTTPError,
+            TendrlPerformanceMonitoringException
+        ) as ex:
             exs = "%s.Failed to fetch iops of cluster with id: %s.Error %s" % (
                 exs,
                 cluster_id,
@@ -372,8 +372,8 @@ def get_nodes_details():
         return nodes_dets
     except EtcdKeyNotFound:
         return nodes_dets
-    except EtcdConnectionFailed as ex:
-        raise TendrlPerformanceMonitoringException(str(ex))
+    except EtcdException as ex:
+        raise ex
 
 
 def get_node_selinux_mode(node_id):
@@ -418,7 +418,7 @@ def get_node_sds_name(node_id):
         sds_name = read_key(
             '/nodes/%s/TendrlContext/sds_name' % node_id
         ).value
-    except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
+    except (EtcdException, AttributeError):
         pass
     return sds_name
 
@@ -429,7 +429,7 @@ def get_node_cluster_id(node_id):
         cluster_id = read_key(
             '/nodes/%s/TendrlContext/integration_id' % node_id
         ).value
-    except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
+    except (AttributeError, EtcdException):
         pass
     return cluster_id
 

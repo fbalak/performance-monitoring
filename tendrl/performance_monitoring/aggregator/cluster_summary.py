@@ -1,5 +1,7 @@
+from etcd import EtcdException
 from etcd import EtcdKeyNotFound
 import gevent
+import urllib3
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
@@ -36,7 +38,8 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 )
             except (
                 EtcdKeyNotFound,
-                TendrlPerformanceMonitoringException
+                AttributeError,
+                EtcdException
             ) as ex:
                 Event(
                     ExceptionMessage(
@@ -63,7 +66,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 alerts = central_store_util.get_node_alerts(node_id)
             except EtcdKeyNotFound:
                 pass
-            except TendrlPerformanceMonitoringException as ex:
+            except (AttributeError, EtcdException) as ex:
                 Event(
                     ExceptionMessage(
                         priority="debug",
@@ -96,7 +99,8 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 node_summaries.append(node_summary)
             except (
                 EtcdKeyNotFound,
-                TendrlPerformanceMonitoringException
+                AttributeError,
+                EtcdException
             ) as ex:
                 Event(
                     ExceptionMessage(
@@ -124,7 +128,13 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 )
             cluster_iops = get_latest_stat(entity_name, metric_name)
             return cluster_iops
-        except TendrlPerformanceMonitoringException:
+        except (
+            AttributeError,
+            EtcdException,
+            urllib3.exceptions.HTTPError,
+            ValueError,
+            TendrlPerformanceMonitoringException
+        ):
             return pm_consts.NOT_AVAILABLE
 
     def parse_cluster(self, cluster_id):
@@ -135,7 +145,8 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             )
         except (
             EtcdKeyNotFound,
-            TendrlPerformanceMonitoringException
+            AttributeError,
+            EtcdException
         ) as ex:
             Event(
                 ExceptionMessage(
@@ -165,7 +176,8 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             sds_name = central_store_util.get_cluster_sds_name(cluster_id)
         except (
             EtcdKeyNotFound,
-            TendrlPerformanceMonitoringException
+            EtcdException,
+            AttributeError
         ) as ex:
             Event(
                 ExceptionMessage(
@@ -210,7 +222,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 except EtcdKeyNotFound:
                     pass
                 except (
-                    TendrlPerformanceMonitoringException,
+                    EtcdException,
                     AttributeError
                 ) as ex:
                     Event(

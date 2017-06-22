@@ -1,8 +1,10 @@
 import datetime
 from etcd import EtcdKeyNotFound
+from etcd import EtcdException
 import gevent
 import math
 from pytz import utc
+import urllib3
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -44,7 +46,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'percent_used': str(percent_user + percent_system),
                 'updated_at': datetime.datetime.now().isoformat()
             }
-        except TendrlPerformanceMonitoringException:
+        except (
+            ValueError,
+            urllib3.exceptions.HTTPError,
+            TendrlPerformanceMonitoringException
+        ):
             # Exception already handled
             return None
 
@@ -59,7 +65,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'total': str(total),
                 'updated_at': datetime.datetime.now().isoformat()
             }
-        except TendrlPerformanceMonitoringException:
+        except (
+            urllib3.exceptions.HTTPError,
+            ValueError,
+            TendrlPerformanceMonitoringException
+        ):
             # Exception already handled
             return None
 
@@ -89,7 +99,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'total': str(total),
                 'updated_at': datetime.datetime.now().isoformat()
             }
-        except TendrlPerformanceMonitoringException:
+        except (
+            ValueError,
+            urllib3.exceptions.HTTPError,
+            TendrlPerformanceMonitoringException
+        ):
             # No need to log this exception as it is logged in generic function
             # but need to return None to indeicate failure to fetch instead of
             # dummy 0
@@ -127,7 +141,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'percent_used': str(percent_used),
                 'updated_at': datetime.datetime.now().isoformat()
             }
-        except TendrlPerformanceMonitoringException:
+        except (
+            ValueError,
+            urllib3.exceptions.HTTPError,
+            TendrlPerformanceMonitoringException
+        ):
             # Exception already handled
             return None
 
@@ -135,7 +153,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         try:
             alert_ids = central_store_util.get_node_alert_ids(node)
             return len(alert_ids)
-        except TendrlPerformanceMonitoringException:
+        except (AttributeError, EtcdException):
             return 0
 
     def calculate_host_summary(self, node):
@@ -184,7 +202,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         except EtcdKeyNotFound:
             pass
         except (
-            TendrlPerformanceMonitoringException,
+            EtcdException,
             AttributeError
         ) as ex:
             Event(
@@ -213,7 +231,8 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             )
         except (
             EtcdKeyNotFound,
-            TendrlPerformanceMonitoringException
+            AttributeError,
+            EtcdException
         ):
             Event(
                 ExceptionMessage(
@@ -229,7 +248,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         node_name = ''
         try:
             node_name = central_store_util.get_node_name_from_id(node)
-        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException) as ex:
+        except (
+            AttributeError,
+            EtcdKeyNotFound,
+            EtcdException
+        ) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
@@ -259,7 +282,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 alert_count=alert_count
             )
             summary.save(update=False)
-        except (AttributeError, TendrlPerformanceMonitoringException) as ex:
+        except (AttributeError, EtcdException) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",

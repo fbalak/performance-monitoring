@@ -1,8 +1,6 @@
 import gevent
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
-from tendrl.performance_monitoring.exceptions \
-    import TendrlPerformanceMonitoringException
 import tendrl.performance_monitoring.utils.central_store_util \
     as central_store_util
 from tendrl.performance_monitoring.utils.util import initiate_config_generation
@@ -18,7 +16,7 @@ class ConfigureClusterMonitoring(gevent.greenlet.Greenlet):
         while not self._complete.is_set():
             try:
                 cluster_ids = central_store_util.get_cluster_ids()
-            except TendrlPerformanceMonitoringException as ex:
+            except (AttributeError, EtcdException)as ex:
                 Event(
                     ExceptionMessage(
                         priority="debug",

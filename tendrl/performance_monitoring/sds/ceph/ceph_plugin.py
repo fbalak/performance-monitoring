@@ -1,6 +1,7 @@
 import ast
 import copy
 from etcd import EtcdKeyNotFound
+from etcd import EtcdException
 import json
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -752,7 +753,7 @@ class CephPlugin(SDSPlugin):
                 pm_consts.WARNING_ALERTS
             ] = count
         except (
-            EtcdKeyNotFound,
+            EtcdException,
             AttributeError,
             KeyError,
             ValueError,
@@ -762,10 +763,11 @@ class CephPlugin(SDSPlugin):
                 ExceptionMessage(
                     priority="debug",
                     publisher=NS.publisher_id,
-                    payload={"message": "Exception caught computing node osd "
-                                        "counts",
-                             "exception": ex
-                             }
+                    payload={
+                        "message": "Exception caught computing node osd "
+                        "counts",
+                        "exception": ex
+                    }
                 )
             )
         return osd_status_wise_counts

@@ -6,7 +6,7 @@ import importlib
 import inspect
 import os
 import six
-
+import urllib3
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.commons.message import Message
@@ -328,7 +328,11 @@ class SDSPlugin(object):
                 )
                 throughput = throughput + curr_throughput
                 cnt = cnt + 1
-            except TendrlPerformanceMonitoringException:
+            except (
+                ValueError,
+                urllib3.exceptions.HTTPError,
+                TendrlPerformanceMonitoringException
+            ):
                 continue
         if cnt > 0:
             throughput = (throughput * 1.0) / (cnt * 1.0)

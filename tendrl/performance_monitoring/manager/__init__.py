@@ -8,6 +8,7 @@ import os
 import signal
 import socket
 from uuid import UUID
+import urllib3
 from tendrl.commons.config import ConfigNotFound
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -66,10 +67,12 @@ def get_nodestats(node_id, resource_name):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
+        etcd.EtcdException,
         SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -117,10 +120,12 @@ def get_clusterutilization(cluster_id, utiliation_type):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
+        etcd.EtcdException,
         SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -159,7 +164,13 @@ def get_cluster_latency(cluster_id):
             status=200,
             mimetype='application/json'
         )
-    except TendrlPerformanceMonitoringException as ex:
+    except (
+        etcd.Exception,
+        AttributeError,
+        urllib3.exceptions.HTTPError,
+        ValueError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
 
 
@@ -203,10 +214,12 @@ def get_cluster_iops(cluster_id):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
+        etcd.EtcdException,
         SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -255,10 +268,12 @@ def get_clusterthroughput(cluster_id, network_type):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
+        etcd.EtcdException,
         SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -307,10 +322,12 @@ def get_sdsthroughput(sds_type, network_type):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
+        etcd.EtcdException,
         SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -358,9 +375,11 @@ def get_sdsutilization(sds_type, utiliation_type):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
+        etcd.EtcdException,
         SyntaxError,
+        urllib3.exceptions.HTTPError,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -378,7 +397,7 @@ def get_cluster_summary(cluster_id):
             status=200,
             mimetype='application/json'
         )
-    except TendrlPerformanceMonitoringException as ex:
+    except (AttributeError, etcd.EtcdException) as ex:
         return Response(
             'Failed to fetch cluster summary for cluster %s.Error %s' % (
                 cluster_id,
@@ -447,6 +466,7 @@ def get_clusters_iops():
         etcd.EtcdKeyNotFound,
         ValueError,
         SyntaxError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException,
         TypeError
     ) as ex:
@@ -586,6 +606,7 @@ def get_nodeiopsstats(node_id):
         ValueError,
         etcd.EtcdKeyNotFound,
         SyntaxError,
+        urllib3.exceptions.HTTPError,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
