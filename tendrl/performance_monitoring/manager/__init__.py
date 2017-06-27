@@ -8,6 +8,7 @@ import os
 import signal
 import socket
 from uuid import UUID
+import urllib3
 from tendrl.commons.config import ConfigNotFound
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -66,12 +67,12 @@ def get_nodestats(node_id, resource_name):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
-        SyntaxError,
         etcd.EtcdException,
+        SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -104,7 +105,7 @@ def get_clusterutilization(cluster_id, utiliation_type):
             )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS._int.client.read('/clusters/%s' % cluster_id)
+        central_store_util.read_key('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
@@ -119,12 +120,12 @@ def get_clusterutilization(cluster_id, utiliation_type):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
-        SyntaxError,
         etcd.EtcdException,
+        SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -163,7 +164,13 @@ def get_cluster_latency(cluster_id):
             status=200,
             mimetype='application/json'
         )
-    except Exception as ex:
+    except (
+        etcd.Exception,
+        AttributeError,
+        urllib3.exceptions.HTTPError,
+        ValueError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
 
 
@@ -194,7 +201,7 @@ def get_cluster_iops(cluster_id):
             )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS._int.client.read('/clusters/%s' % cluster_id)
+        central_store_util.read_key('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.get_plugin().get_metric_stats(
                 entity_name,
@@ -207,12 +214,12 @@ def get_cluster_iops(cluster_id):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
-        SyntaxError,
         etcd.EtcdException,
+        SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -246,7 +253,7 @@ def get_clusterthroughput(cluster_id, network_type):
             )
         # Validate cluster_id. Attempt to fetch clusters/cluster_id fails
         # with EtcdKeyNotFound if cluster if is invalid
-        NS._int.client.read('/clusters/%s' % cluster_id)
+        central_store_util.read_key('/clusters/%s' % cluster_id)
         return Response(
             NS.time_series_db_manager.\
             get_plugin().\
@@ -261,12 +268,12 @@ def get_clusterthroughput(cluster_id, network_type):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
-        SyntaxError,
         etcd.EtcdException,
+        SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -315,12 +322,12 @@ def get_sdsthroughput(sds_type, network_type):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
-        SyntaxError,
         etcd.EtcdException,
+        SyntaxError,
         TypeError,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException
     ) as ex:
         return Response(str(ex), status=500, mimetype='application/json')
@@ -368,11 +375,11 @@ def get_sdsutilization(sds_type, utiliation_type):
             mimetype='application/json'
         )
     except (
+        AttributeError,
         ValueError,
-        etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
-        SyntaxError,
         etcd.EtcdException,
+        SyntaxError,
+        urllib3.exceptions.HTTPError,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -390,7 +397,7 @@ def get_cluster_summary(cluster_id):
             status=200,
             mimetype='application/json'
         )
-    except TendrlPerformanceMonitoringException as ex:
+    except (AttributeError, etcd.EtcdException) as ex:
         return Response(
             'Failed to fetch cluster summary for cluster %s.Error %s' % (
                 cluster_id,
@@ -457,10 +464,9 @@ def get_clusters_iops():
         )
     except (
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         ValueError,
         SyntaxError,
-        etcd.EtcdException,
+        urllib3.exceptions.HTTPError,
         TendrlPerformanceMonitoringException,
         TypeError
     ) as ex:
@@ -509,9 +515,7 @@ def get_stat_types(node_id):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:
@@ -561,10 +565,8 @@ def get_node_summary():
         )
     except (
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         ValueError,
         SyntaxError,
-        etcd.EtcdException,
         TendrlPerformanceMonitoringException,
         TypeError
     ) as ex:
@@ -603,9 +605,8 @@ def get_nodeiopsstats(node_id):
     except (
         ValueError,
         etcd.EtcdKeyNotFound,
-        etcd.EtcdConnectionFailed,
         SyntaxError,
-        etcd.EtcdException,
+        urllib3.exceptions.HTTPError,
         TypeError,
         TendrlPerformanceMonitoringException
     ) as ex:

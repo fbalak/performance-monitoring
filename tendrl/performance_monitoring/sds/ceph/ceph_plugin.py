@@ -1,11 +1,14 @@
 import ast
 import copy
 from etcd import EtcdKeyNotFound
+from etcd import EtcdException
 import json
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
     pm_consts
+from tendrl.performance_monitoring.exceptions \
+    import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.objects.system_summary \
     import SystemSummary
 from tendrl.performance_monitoring.sds import SDSPlugin
@@ -119,14 +122,31 @@ class CephPlugin(SDSPlugin):
                     nw_node_interfaces.append(
                         interface_det.get('interface')
                     )
-        except Exception:
+        except (
+            EtcdKeyNotFound,
+            ValueError,
+            TypeError,
+            AttributeError
+        ):
             pass
+        except TendrlPerformanceMonitoringException as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": "Error fetching %s n/w info for node "
+                        "%s" % (nw_type, node_id),
+                        "exception": ex
+                    }
+                )
+            )
         return nw_node_interfaces
 
     def get_cluster_pool_ids(self, cluster_id):
         pools = []
         try:
-            etcd_pools = NS._int.client.read(
+            etcd_pools = central_store_util.read_key(
                 '/clusters/%s/Pools/' % cluster_id
             )
             for etcd_pool in etcd_pools.leaves:
@@ -134,7 +154,7 @@ class CephPlugin(SDSPlugin):
                 pool_key_contents = etcd_pool.key.split('/')
                 if len(pool_key_contents) == 5:
                     pools.append(pool_key_contents[4])
-        except EtcdKeyNotFound:
+        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
             pass
         return pools
 
@@ -150,7 +170,7 @@ class CephPlugin(SDSPlugin):
                     )
                 )
                 pools[pool_id] = pool
-        except EtcdKeyNotFound:
+        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
             pass
         return pools
 
@@ -211,7 +231,7 @@ class CephPlugin(SDSPlugin):
         rbd_names = {}
         for pool_id in pool_ids:
             try:
-                etcd_pool_rbds = NS._int.client.read(
+                etcd_pool_rbds = central_store_util.read_key(
                     '/clusters/%s/Pools/%s/Rbds' % (
                         cluster_id,
                         pool_id
@@ -224,7 +244,7 @@ class CephPlugin(SDSPlugin):
                         pool_rbds = rbd_names.get(pool_id, [])
                         pool_rbds.append(etcd_pool_rbd_key_contents[6])
                         rbd_names[pool_id] = pool_rbds
-            except EtcdKeyNotFound:
+            except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
                 continue
         return rbd_names
 
@@ -235,7 +255,7 @@ class CephPlugin(SDSPlugin):
             for pool_id, pool in pools.iteritems():
                 pool_ids.append(pool_id)
             rbd_names = self.get_rbd_names(cluster_id, pool_ids)
-        except EtcdKeyNotFound:
+        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
             pass
         for pool_id, pool_rbds in rbd_names.iteritems():
             for rbd in pool_rbds:
@@ -248,7 +268,7 @@ class CephPlugin(SDSPlugin):
                         )
                     )
                     rbds.append(rbd_dict)
-                except EtcdKeyNotFound:
+                except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
                     continue
         return rbds
 
@@ -276,7 +296,9 @@ class CephPlugin(SDSPlugin):
             )
             osd_data = json.loads(osd_data['data'])
             osds = osd_data.get('osds')
-        except EtcdKeyNotFound:
+            if not osds:
+                osds = []
+        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
             pass
         return osds
 
@@ -289,7 +311,7 @@ class CephPlugin(SDSPlugin):
             'near_full': 0
         }
         for osd in osds:
-            if 'up' not in osd.get('state'):
+            if 'up' not in osd.get('state', ''):
                 osd_status_wise_counts['down'] = \
                     osd_status_wise_counts['down'] + 1
             osd_status_wise_counts['total'] = \
@@ -334,6 +356,18 @@ class CephPlugin(SDSPlugin):
             mon_status_wise_counts['outside_quorum'] = len(outside_quorum)
         except EtcdKeyNotFound:
             pass
+        except (ValueError, TendrlPerformanceMonitoringException) as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": "Exception caught computing mon status "
+                        "wise counts",
+                        "exception": ex
+                    }
+                )
+            )
         return mon_status_wise_counts
 
     def get_pg_counts(self, cluster_id):
@@ -350,7 +384,7 @@ class CephPlugin(SDSPlugin):
             return _calculate_pg_counters(
                 pg_summary
             )
-        except EtcdKeyNotFound:
+        except (EtcdKeyNotFound, TendrlPerformanceMonitoringException):
             return {}
 
     def get_cluster_summary(self, cluster_id, cluster_name):
@@ -648,7 +682,12 @@ class CephPlugin(SDSPlugin):
                 },
                 sds_type=self.name
             ).save(update=False)
-        except Exception as ex:
+        except (
+            AttributeError,
+            ValueError,
+            TypeError,
+            KeyError
+        ) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
@@ -713,15 +752,22 @@ class CephPlugin(SDSPlugin):
             osd_status_wise_counts[
                 pm_consts.WARNING_ALERTS
             ] = count
-        except Exception as ex:
+        except (
+            EtcdException,
+            AttributeError,
+            KeyError,
+            ValueError,
+            TendrlPerformanceMonitoringException
+        ) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
                     publisher=NS.publisher_id,
-                    payload={"message": "Exception caught computing node osd "
-                                        "counts",
-                             "exception": ex
-                             }
+                    payload={
+                        "message": "Exception caught computing node osd "
+                        "counts",
+                        "exception": ex
+                    }
                 )
             )
         return osd_status_wise_counts

@@ -1,5 +1,7 @@
+from etcd import EtcdException
 from etcd import EtcdKeyNotFound
 import gevent
+import urllib3
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.performance_monitoring import constants as \
@@ -34,7 +36,11 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                         node_id
                     )
                 )
-            except EtcdKeyNotFound as ex:
+            except (
+                EtcdKeyNotFound,
+                AttributeError,
+                EtcdException
+            ) as ex:
                 Event(
                     ExceptionMessage(
                         priority="debug",
@@ -49,6 +55,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                         }
                     )
                 )
+                continue
             status = node_context.get('status')
             if status:
                 if status != 'UP':
@@ -59,6 +66,19 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 alerts = central_store_util.get_node_alerts(node_id)
             except EtcdKeyNotFound:
                 pass
+            except (AttributeError, EtcdException) as ex:
+                Event(
+                    ExceptionMessage(
+                        priority="debug",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Error fetching alerts for node %s' % (
+                                node_id
+                            ),
+                            "exception": ex
+                        }
+                    )
+                )
             for alert in alerts:
                 if alert.get('severity') == 'CRITICAL':
                     status_wise_count['crit_alert_count'] = \
@@ -77,7 +97,11 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                     '/monitoring/summary/nodes/%s' % node_id
                 )
                 node_summaries.append(node_summary)
-            except EtcdKeyNotFound as ex:
+            except (
+                EtcdKeyNotFound,
+                AttributeError,
+                EtcdException
+            ) as ex:
                 Event(
                     ExceptionMessage(
                         priority="debug",
@@ -104,13 +128,37 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
                 )
             cluster_iops = get_latest_stat(entity_name, metric_name)
             return cluster_iops
-        except TendrlPerformanceMonitoringException:
+        except (
+            AttributeError,
+            EtcdException,
+            urllib3.exceptions.HTTPError,
+            ValueError,
+            TendrlPerformanceMonitoringException
+        ):
             return pm_consts.NOT_AVAILABLE
 
     def parse_cluster(self, cluster_id):
-        utilization = central_store_util.read(
-            '/clusters/%s/Utilization' % cluster_id
-        )
+        utilization = {}
+        try:
+            utilization = central_store_util.read(
+                '/clusters/%s/Utilization' % cluster_id
+            )
+        except (
+            EtcdKeyNotFound,
+            AttributeError,
+            EtcdException
+        ) as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Utilization not available for cluster'
+                        ' %s.' % cluster_id,
+                        "exception": ex
+                    }
+                )
+            )
         used = 0
         total = 0
         percent_used = 0
@@ -124,6 +172,24 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             total = utilization.get('total')
         if utilization.get('pcnt_used'):
             percent_used = utilization.get('pcnt_used')
+        try:
+            sds_name = central_store_util.get_cluster_sds_name(cluster_id)
+        except (
+            EtcdKeyNotFound,
+            EtcdException,
+            AttributeError
+        ) as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Error caught fetching sds name of'
+                        ' cluster %s.' % cluster_id,
+                        "exception": ex
+                    }
+                )
+            )
         return ClusterSummary(
             utilization={
                 'total': int(total),
@@ -132,7 +198,7 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
             },
             iops=str(self.get_cluster_iops(cluster_id)),
             hosts_count=self.parse_host_count(cluster_id),
-            sds_type=central_store_util.get_cluster_sds_name(cluster_id),
+            sds_type=sds_name,
             node_summaries=self.cluster_nodes_summary(
                 cluster_id
             ),
@@ -146,29 +212,33 @@ class ClusterSummarise(gevent.greenlet.Greenlet):
     def _run(self):
         while not self._complete.is_set():
             cluster_summaries = []
-            try:
-                clusters = central_store_util.get_cluster_ids()
-                for clusterid in clusters:
-                    gevent.sleep(0.1)
+            clusters = central_store_util.get_cluster_ids()
+            for clusterid in clusters:
+                gevent.sleep(0.1)
+                try:
                     cluster_summary = self.parse_cluster(clusterid)
                     cluster_summaries.append(cluster_summary.copy())
                     cluster_summary.save(update=False)
-                NS.sds_monitoring_manager.compute_system_summary(
-                    cluster_summaries
-                )
-            except EtcdKeyNotFound:
-                pass
-            except Exception as ex:
-                Event(
-                    ExceptionMessage(
-                        priority="debug",
-                        publisher=NS.publisher_id,
-                        payload={
-                            "message": 'Error caught computing summary.',
-                            "exception": ex
-                        }
+                except EtcdKeyNotFound:
+                    pass
+                except (
+                    EtcdException,
+                    AttributeError
+                ) as ex:
+                    Event(
+                        ExceptionMessage(
+                            priority="debug",
+                            publisher=NS.publisher_id,
+                            payload={
+                                "message": 'Error caught computing summary.',
+                                "exception": ex
+                            }
+                        )
                     )
-                )
+                    continue
+            NS.sds_monitoring_manager.compute_system_summary(
+                cluster_summaries
+            )
             gevent.sleep(60)
 
     def stop(self):
