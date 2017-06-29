@@ -1,9 +1,10 @@
 import datetime
-from etcd import EtcdConnectionFailed
 from etcd import EtcdKeyNotFound
+from etcd import EtcdException
 import gevent
 import math
 from pytz import utc
+import urllib3
 
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
@@ -45,7 +46,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'percent_used': str(percent_user + percent_system),
                 'updated_at': datetime.datetime.now().isoformat()
             }
-        except TendrlPerformanceMonitoringException:
+        except (
+            ValueError,
+            urllib3.exceptions.HTTPError,
+            TendrlPerformanceMonitoringException
+        ):
             # Exception already handled
             return None
 
@@ -60,7 +65,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'total': str(total),
                 'updated_at': datetime.datetime.now().isoformat()
             }
-        except TendrlPerformanceMonitoringException:
+        except (
+            urllib3.exceptions.HTTPError,
+            ValueError,
+            TendrlPerformanceMonitoringException
+        ):
             # Exception already handled
             return None
 
@@ -90,7 +99,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'total': str(total),
                 'updated_at': datetime.datetime.now().isoformat()
             }
-        except TendrlPerformanceMonitoringException:
+        except (
+            ValueError,
+            urllib3.exceptions.HTTPError,
+            TendrlPerformanceMonitoringException
+        ):
             # No need to log this exception as it is logged in generic function
             # but need to return None to indeicate failure to fetch instead of
             # dummy 0
@@ -128,7 +141,11 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 'percent_used': str(percent_used),
                 'updated_at': datetime.datetime.now().isoformat()
             }
-        except TendrlPerformanceMonitoringException:
+        except (
+            ValueError,
+            urllib3.exceptions.HTTPError,
+            TendrlPerformanceMonitoringException
+        ):
             # Exception already handled
             return None
 
@@ -136,7 +153,7 @@ class NodeSummarise(gevent.greenlet.Greenlet):
         try:
             alert_ids = central_store_util.get_node_alert_ids(node)
             return len(alert_ids)
-        except TendrlPerformanceMonitoringException:
+        except (AttributeError, EtcdException):
             return 0
 
     def calculate_host_summary(self, node):
@@ -184,7 +201,10 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             old_summary = old_summary.load()
         except EtcdKeyNotFound:
             pass
-        except (EtcdConnectionFailed, Exception) as ex:
+        except (
+            EtcdException,
+            AttributeError
+        ) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
@@ -204,9 +224,49 @@ class NodeSummarise(gevent.greenlet.Greenlet):
             storage_usage = old_summary.storage_usage
         if swap_usage is None:
             swap_usage = old_summary.swap_usage
+        selinux_mode = ''
+        try:
+            selinux_mode = central_store_util.get_node_selinux_mode(
+                node
+            )
+        except (
+            EtcdKeyNotFound,
+            AttributeError,
+            EtcdException
+        ):
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Selinux mode not available for node '
+                        '%s' % str(node),
+                        "exception": ex
+                    }
+                )
+            )
+        node_name = ''
+        try:
+            node_name = central_store_util.get_node_name_from_id(node)
+        except (
+            AttributeError,
+            EtcdKeyNotFound,
+            EtcdException
+        ) as ex:
+            Event(
+                ExceptionMessage(
+                    priority="debug",
+                    publisher=NS.publisher_id,
+                    payload={
+                        "message": 'Node name of %s fetch failed '
+                        '%s' % str(node),
+                        "exception": ex
+                    }
+                )
+            )
         try:
             summary = NodeSummary(
-                name=central_store_util.get_node_name_from_id(node),
+                name=node_name,
                 node_id=node,
                 status=self.get_node_status(node),
                 role=central_store_util.get_node_role(node),
@@ -217,14 +277,12 @@ class NodeSummarise(gevent.greenlet.Greenlet):
                 memory_usage=memory_usage,
                 storage_usage=storage_usage,
                 swap_usage=swap_usage,
-                selinux_mode=central_store_util.get_node_selinux_mode(
-                    node
-                ),
+                selinux_mode=selinux_mode,
                 sds_det=sds_det,
                 alert_count=alert_count
             )
             summary.save(update=False)
-        except Exception as ex:
+        except (AttributeError, EtcdException) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",

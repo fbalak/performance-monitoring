@@ -1,12 +1,9 @@
 import ast
-from etcd import EtcdConnectionFailed
+from etcd import EtcdException
 import gevent.event
 import gevent.greenlet
-
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
-from tendrl.performance_monitoring.exceptions \
-    import TendrlPerformanceMonitoringException
 from tendrl.performance_monitoring.utils.util import initiate_config_generation
 import tendrl.performance_monitoring.utils.central_store_util \
     as central_store_util
@@ -18,7 +15,12 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
             node_dets = central_store_util.get_nodes_details()
             for node_det in node_dets:
                 self.init_monitoring_on_node(node_det)
-        except TendrlPerformanceMonitoringException as ex:
+        except (
+            AttributeError,
+            KeyError,
+            ValueError,
+            EtcdException
+        ) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
@@ -112,10 +114,7 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
 
     def __init__(self):
         super(ConfigureNodeMonitoring, self).__init__()
-        try:
-            self._complete = gevent.event.Event()
-        except TendrlPerformanceMonitoringException as ex:
-            raise ex
+        self._complete = gevent.event.Event()
 
     def _run(self):
         try:
@@ -123,7 +122,12 @@ class ConfigureNodeMonitoring(gevent.greenlet.Greenlet):
                 gevent.sleep(0.1)
                 self.init_monitoring()
                 gevent.sleep(10)
-        except (EtcdConnectionFailed, Exception) as e:
+        except (
+            AttributeError,
+            KeyError,
+            ValueError,
+            EtcdException
+        ) as e:
             Event(
                 ExceptionMessage(
                     priority="debug",

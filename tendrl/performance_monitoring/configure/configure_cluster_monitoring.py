@@ -1,4 +1,8 @@
 import gevent
+from tendrl.commons.event import Event
+from tendrl.commons.message import ExceptionMessage
+import tendrl.performance_monitoring.utils.central_store_util \
+    as central_store_util
 from tendrl.performance_monitoring.utils.util import initiate_config_generation
 
 
@@ -7,35 +11,32 @@ class ConfigureClusterMonitoring(gevent.greenlet.Greenlet):
         super(ConfigureClusterMonitoring, self).__init__()
         self._complete = gevent.event.Event()
 
-    def get_cluster_ids(self):
-        cluster_ids = []
-        try:
-            clusters = NS._int.client.read(
-                '/clusters'
-            )
-            for cluster in clusters.leaves:
-                key_contents = cluster.key.split('/')
-                if len(key_contents) == 3:
-                    cluster_id = key_contents[2]
-                    cluster_ids.append(cluster_id)
-            return cluster_ids
-        except Exception:
-            return cluster_ids
-
     def configure_cluster_monitoring(self):
+        cluster_ids = []
         while not self._complete.is_set():
             try:
-                cluster_ids = self.get_cluster_ids()
-                for cluster_id in cluster_ids:
-                    configs = NS.sds_monitoring_manager.configure_monitoring(
-                        cluster_id
+                cluster_ids = central_store_util.get_cluster_ids()
+            except (AttributeError, EtcdException)as ex:
+                Event(
+                    ExceptionMessage(
+                        priority="debug",
+                        publisher=NS.publisher_id,
+                        payload={
+                            "message": 'Error fetcing list of cluster ids to '
+                            'configure',
+                            "exception": ex
+                        }
                     )
-                    if configs:
-                        for config in configs:
-                            gevent.sleep(0.1)
-                            gevent.spawn(initiate_config_generation, config)
-            except Exception:
+                )
                 pass
+            for cluster_id in cluster_ids:
+                configs = NS.sds_monitoring_manager.configure_monitoring(
+                    cluster_id
+                )
+                if configs:
+                    for config in configs:
+                        gevent.sleep(0.1)
+                        gevent.spawn(initiate_config_generation, config)
             gevent.sleep(10)
 
     def _run(self):

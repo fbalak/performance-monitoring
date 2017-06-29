@@ -1,9 +1,9 @@
-from etcd import EtcdConnectionFailed
 from etcd import EtcdException
 import json
 import math
 import pkgutil
 import re
+import urllib3
 from tendrl.commons.event import Event
 from tendrl.commons.message import ExceptionMessage
 from tendrl.commons.objects.job import Job
@@ -73,14 +73,23 @@ def initiate_config_generation(node_det):
             node_id=node_det.get('node_id'),
             job_id=job_id
         ).save(update=False)
-    except (EtcdException, EtcdConnectionFailed, Exception) as ex:
-        raise TendrlPerformanceMonitoringException(
-            'Failed to intiate monitoring configuration for plugin \
-            %s on %s with parameters %s.Error %s' % (
-                node_det['plugin'],
-                node_det['fqdn'],
-                json.dumps(node_det['plugin_conf']),
-                str(ex)
+    except (
+        EtcdException,
+        AttributeError
+    ) as ex:
+        Event(
+            ExceptionMessage(
+                priority="debug",
+                publisher=NS.publisher_id,
+                payload={
+                    "message": 'Failed to intiate monitoring configuration for'
+                    ' plugin %s on %s with parameters %s.' % (
+                        node_det['plugin'],
+                        node_det['fqdn'],
+                        json.dumps(node_det['plugin_conf'])
+                    ),
+                    "exception": ex
+                }
             )
         )
 
@@ -131,16 +140,23 @@ def get_latest_stats(node, resource):
                 'Stats not yet available in time series db'
             )
         return re.findall('Current:(.+?)Max', stats)
-    except TendrlPerformanceMonitoringException as ex:
+    except (
+        ValueError,
+        urllib3.exceptions.HTTPError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
         Event(
             ExceptionMessage(
                 priority="debug",
                 publisher=NS.publisher_id,
-                payload={"message": 'Failed to get latest stats of %s of '
-                                    'node %s for node summary.'
-                                    % (resource, node),
-                         "exception": ex
-                         }
+                payload={
+                    "message": 'Failed to get latest stats of %s of '
+                    'node %s for node summary.' % (
+                        resource,
+                        node
+                    ),
+                    "exception": ex
+                }
             )
         )
         raise ex
@@ -152,7 +168,11 @@ def get_latest_node_stat(node, resource):
             node
         )
         return get_latest_stat(node_name, resource)
-    except TendrlPerformanceMonitoringException as ex:
+    except (
+        ValueError,
+        urllib3.exceptions.HTTPError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
         raise ex
 
 
@@ -188,16 +208,23 @@ def get_latest_stat(node, resource):
                 )
             )
         return float(stat)
-    except TendrlPerformanceMonitoringException as ex:
+    except (
+        ValueError,
+        urllib3.exceptions.HTTPError,
+        TendrlPerformanceMonitoringException
+    ) as ex:
         Event(
             ExceptionMessage(
                 priority="debug",
                 publisher=NS.publisher_id,
-                payload={"message": 'Failed to get latest stat of %s of '
-                                    'node %s for node summary.'
-                                    % (resource, node),
-                         "exception": ex
-                         }
+                payload={
+                    "message": 'Failed to get latest stat of %s of '
+                    'node %s for node summary.' % (
+                        resource,
+                        node
+                    ),
+                    "exception": ex
+                }
             )
         )
         raise ex

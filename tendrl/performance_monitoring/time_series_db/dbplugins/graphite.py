@@ -86,7 +86,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                         stats.status
                     )
                 )
-        except (ValueError, Exception) as ex:
+        except (ValueError, urllib3.exceptions.HTTPError) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
@@ -98,7 +98,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                              }
                 )
             )
-            raise TendrlPerformanceMonitoringException(str(ex))
+            raise ex
 
     def parse_time(self, time_str):
         # TODO(Anmol B): Need to add timezone info gathering
@@ -152,19 +152,22 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                         stats.status
                     )
                 )
-        except (ValueError, Exception) as ex:
+        except (ValueError, urllib3.exceptions.HTTPError) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
                     publisher=NS.publisher_id,
-                    payload={"message": 'Failed to fetch stats for metric %s'
-                                        ' of %s using url. %s' %
-                                        (metric_name, entity_name, url),
-                             "exception": ex
-                             }
+                    payload={
+                        "message": 'Failed to fetch stats for metric %s'
+                        ' of %s using url. %s' % (
+                            metric_name,
+                            entity_name, url
+                        ),
+                        "exception": ex
+                    }
                 )
             )
-            raise TendrlPerformanceMonitoringException(str(ex))
+            raise ex
 
     def get_node_disk_iops_stats(
         self,
@@ -218,7 +221,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                         stats.status
                     )
                 )
-        except (ValueError, Exception) as ex:
+        except (ValueError, urllib3.exceptions.HTTPError) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
@@ -230,7 +233,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                     }
                 )
             )
-            raise TendrlPerformanceMonitoringException(str(ex))
+            raise ex
 
     def get_metrics(self, entity_name):
         url = 'http://%s:%s/metrics/index.json' % (self.host, str(self.port))
@@ -251,7 +254,7 @@ class GraphitePlugin(TimeSeriesDBPlugin):
                     split_metrics = metric.split(prefix)
                     result.append(split_metrics[1])
             return str(result)
-        except (ValueError, Exception) as ex:
+        except (ValueError, urllib3.exceptions.HTTPError) as ex:
             Event(
                 ExceptionMessage(
                     priority="debug",
